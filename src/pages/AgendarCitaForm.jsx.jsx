@@ -1,4 +1,3 @@
-// src/pages/AgendarCitaForm.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import {
@@ -8,7 +7,6 @@ import {
   query,
   setDoc,
   updateDoc,
-  arrayUnion,
   serverTimestamp,
   where,
   onSnapshot,
@@ -16,12 +14,12 @@ import {
 
 function AgendarCitaForm() {
   const [busqueda, setBusqueda] = useState("");
-  const [buscando, setBuscando] = useState(false);
+  const [pacientes, setPacientes] = useState([]); // todos los pacientes cargados
+  const [sugerencias, setSugerencias] = useState([]); // resultados filtrados
   const [paciente, setPaciente] = useState(null);
-  const [noEncontrado, setNoEncontrado] = useState(false);
 
   const [doctores, setDoctores] = useState([]);
-  const [citas, setCitas] = useState([]); //para todas las citas en espera
+  const [citas, setCitas] = useState([]);
 
   const [form, setForm] = useState({
     area: "",
@@ -35,12 +33,28 @@ function AgendarCitaForm() {
 
   const [agendando, setAgendando] = useState(false);
 
-  // Cargar doctores
+  // Cargar todos los px
+  useEffect(() => {
+    const cargarPacientes = async () => {
+      try {
+        const snap = await getDocs(collection(db, "pacientes"));
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setPacientes(rows);
+      } catch (err) {
+        console.error("Error cargando pacientes", err);
+      }
+    };
+    cargarPacientes();
+  }, []);
+
+  // Load de doc
   useEffect(() => {
     const cargarDoctores = async () => {
       try {
-        const q = query(collection(db, "doctores"));
-        const snap = await getDocs(q);
+        const snap = await getDocs(query(collection(db, "doctores")));
         const rows = snap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
@@ -55,7 +69,7 @@ function AgendarCitaForm() {
     cargarDoctores();
   }, []);
 
-  //Consultar todas las citas en espera
+  // conxultas de citas
   useEffect(() => {
     const qCitas = query(collection(db, "citas"), where("estado", "==", "en_espera"));
     const unsub = onSnapshot(qCitas, (snap) => {
@@ -75,20 +89,16 @@ function AgendarCitaForm() {
     return doctores.filter((d) => (d.area || "").trim() === form.area);
   }, [doctores, form.area]);
 
-  //Horarios disponibles considerando citas existentes
+  // muestra los horarios disponibles del doctor
   const horariosDisponiblesDelDoctor = useMemo(() => {
     if (!form.doctorId || !form.fecha) return [];
     const selDoctor = doctores.find((d) => d.id === form.doctorId);
     if (!selDoctor) return [];
 
-    const fechaSeleccionada = form.fecha;
-
-    // Obtener horarios ocupados por citas existentes para este doctor en la fecha
     const horariosOcupados = citas
-      .filter((c) => c.doctorId === form.doctorId && c.fecha === fechaSeleccionada)
+      .filter((c) => c.doctorId === form.doctorId && c.fecha === form.fecha)
       .map((c) => c.horario);
 
-    // Retornar solo los horarios libres
     return (selDoctor.horarios || []).filter((h) => !horariosOcupados.includes(h));
   }, [form.doctorId, form.fecha, doctores, citas]);
 
@@ -105,45 +115,41 @@ function AgendarCitaForm() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
-  const buscarPaciente = async () => {
-    if (!busqueda.trim()) return alert("Ingrese expediente o nombre");
-    setBuscando(true);
-    setPaciente(null);
-    setNoEncontrado(false);
-
-    try {
-      let q;
-      if (/^\d+$/.test(busqueda.trim())) {
-        q = query(collection(db, "pacientes"), where("expediente", "==", busqueda.trim()));
-      } else {
-        q = query(collection(db, "pacientes"), where("nombre", "==", busqueda.trim()));
-      }
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setPaciente({ id: snap.docs[0].id, ...snap.docs[0].data() });
-      } else {
-        setNoEncontrado(true);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error buscando paciente");
-    } finally {
-      setBuscando(false);
+  // filtro de px mientras escribe
+  const handleBusqueda = (e) => {
+    const value = e.target.value;
+    setBusqueda(value);
+    if (!value.trim()) {
+      setSugerencias([]);
+      return;
     }
+    const lower = value.toLowerCase();
+    const filtrados = pacientes.filter(
+      (p) =>
+        String(p.expediente || "").toLowerCase().includes(lower) ||
+        String(p.nombre || "").toLowerCase().includes(lower)
+    );
+    setSugerencias(filtrados.slice(0, 8)); // máximo 8 sugerencias
   };
 
+  // select de px de lista
+  const seleccionarPaciente = (p) => {
+    setPaciente(p);
+    setBusqueda(`${p.expediente} - ${p.nombre}`);
+    setSugerencias([]);
+  };
+
+  // agegndar
   const agendarCita = async (e) => {
     e.preventDefault();
-    if (!paciente) return alert("Primero busca un paciente");
+    if (!paciente) return alert("Primero seleccione un paciente");
     if (!form.area || !form.doctorId || !form.fecha || !form.horario)
       return alert("Completa todos los campos requeridos");
 
     setAgendando(true);
     try {
       const selDoctor = doctores.find((d) => d.id === form.doctorId);
-      const doctorRef = doc(db, "doctores", selDoctor.id);
 
-      // Crear cita
       const citaRef = doc(collection(db, "citas"));
       await setDoc(citaRef, {
         pacienteId: paciente.id,
@@ -161,7 +167,6 @@ function AgendarCitaForm() {
         createdAt: serverTimestamp(),
       });
 
-      //Actualizar paciente: marcar en lista de espera
       const pacRef = doc(db, "pacientes", paciente.id);
       await updateDoc(pacRef, {
         enEspera: true,
@@ -169,9 +174,8 @@ function AgendarCitaForm() {
         ultimaCitaFecha: form.fecha,
       });
 
-      alert(" Cita agendada y paciente enviado a lista de espera");
+      alert("✅ Cita agendada y paciente enviado a lista de espera");
 
-      // Reset formulario
       setForm({
         area: "",
         doctorId: "",
@@ -192,58 +196,56 @@ function AgendarCitaForm() {
   };
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ maxWidth: 600, margin: "0 auto" }}>
       <h2 className="text-center mb-3">Agendar Cita</h2>
 
-      {/* Búsqueda */}
-      <div className="input-group mb-3">
+      {/* busq con autofill exp o nombre */}
+      <div className="mb-3 position-relative">
         <input
           type="text"
           className="form-control"
-          placeholder="Expediente o nombre"
+          placeholder="Buscar expediente o nombre..."
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={handleBusqueda}
         />
-        <button className="btn btn-secondary" onClick={buscarPaciente} disabled={buscando}>
-          {buscando ? "Buscando…" : "Buscar"}
-        </button>
+        {sugerencias.length > 0 && (
+          <ul className="list-group position-absolute w-100" style={{ zIndex: 1000 }}>
+            {sugerencias.map((p) => (
+              <li
+                key={p.id}
+                className="list-group-item list-group-item-action"
+                style={{ cursor: "pointer" }}
+                onClick={() => seleccionarPaciente(p)}
+              >
+                {p.expediente} — {p.nombre} ({p.edad || "Edad N/D"})
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {noEncontrado && <div className="text-danger mb-2">Paciente no encontrado</div>}
 
-      {/* Info paciente */}
+      {/* Info px */}
       {paciente && (
         <div className="card mb-3">
           <div className="card-body">
-            <p>
-              <strong>Expediente:</strong> {paciente.expediente}
-            </p>
-            <p>
-              <strong>Nombre:</strong> {paciente.nombre}
-            </p>
-            {paciente.edad && (
-              <p>
-                <strong>Edad:</strong> {paciente.edad}
-              </p>
-            )}
+            <p><strong>Expediente:</strong> {paciente.expediente}</p>
+            <p><strong>Nombre:</strong> {paciente.nombre}</p>
+            {paciente.edad && <p><strong>Edad:</strong> {paciente.edad}</p>}
           </div>
         </div>
       )}
 
-      {/* Formulario */}
+      {/* form */}
       <form onSubmit={agendarCita}>
         <fieldset disabled={!paciente}>
-          {/* Área */}
           <label className="form-label">Área</label>
           <select name="area" className="form-control mb-2" value={form.area} onChange={handleChange}>
             <option value="">Seleccione área</option>
             {areas.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
+              <option key={a} value={a}>{a}</option>
             ))}
           </select>
 
-          {/* Doctor */}
           <label className="form-label">Doctor</label>
           <select
             name="doctorId"
@@ -254,13 +256,10 @@ function AgendarCitaForm() {
           >
             <option value="">Seleccione doctor</option>
             {doctoresFiltrados.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nombre}
-              </option>
+              <option key={d.id} value={d.id}>{d.nombre}</option>
             ))}
           </select>
 
-          {/* Fecha */}
           <label className="form-label">Fecha</label>
           <input
             type="date"
@@ -271,7 +270,6 @@ function AgendarCitaForm() {
             disabled={!form.doctorId}
           />
 
-          {/* Horario */}
           <label className="form-label">Horario disponible</label>
           <select
             name="horario"
@@ -282,13 +280,10 @@ function AgendarCitaForm() {
           >
             <option value="">Seleccione horario</option>
             {horariosDisponiblesDelDoctor.map((h, i) => (
-              <option key={i} value={h}>
-                {h}
-              </option>
+              <option key={i} value={h}>{h}</option>
             ))}
           </select>
 
-          {/* Síntomas */}
           <label className="form-label">Síntomas</label>
           <textarea
             name="sintomas"
@@ -298,7 +293,6 @@ function AgendarCitaForm() {
             onChange={handleChange}
           />
 
-          {/* Motivo */}
           <label className="form-label">Motivo</label>
           <textarea
             name="motivo"
@@ -308,9 +302,13 @@ function AgendarCitaForm() {
             onChange={handleChange}
           />
 
-          {/* Prioridad */}
           <label className="form-label">Prioridad</label>
-          <select name="prioridad" className="form-control mb-3" value={form.prioridad} onChange={handleChange}>
+          <select
+            name="prioridad"
+            className="form-control mb-3"
+            value={form.prioridad}
+            onChange={handleChange}
+          >
             <option value="alta">Alta</option>
             <option value="media">Media</option>
             <option value="baja">Baja</option>
@@ -324,4 +322,5 @@ function AgendarCitaForm() {
     </div>
   );
 }
+
 export default AgendarCitaForm;
