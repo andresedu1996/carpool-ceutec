@@ -214,7 +214,9 @@ function Home() {
             </button>
             {activeTab === "pacientes" && <PacienteForm />}
             {activeTab === "modificar" && <ModificarExpediente />}
-            {activeTab === "listaPacientes" && <ListaPacientes />}
+           {activeTab === "listaPacientes" && (
+  <ListaPacientes setActiveTab={setActiveTab} />
+)}
             {activeTab === "listaDoctores" && <ListaDoctores />}
             {activeTab === "agendar" && <AgendarCitaForm />}
             {activeTab === "atender" && <AtenderPaciente />}
