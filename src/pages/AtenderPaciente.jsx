@@ -25,7 +25,7 @@ function AtenderPaciente() {
         ...doc.data()
       }));
 
-      // Ordenar por prioridad y luego por fecha
+      // ordenar por prioridad y luego por fecha
       citasData.sort((a, b) => {
         const prioridadOrden = { alta: 0, media: 1, baja: 2 };
         const prioA = prioridadOrden[a.prioridad] || 1;
@@ -66,7 +66,6 @@ function AtenderPaciente() {
 
   const atenderSiguiente = async () => {
     if (citas.length === 0) return;
-    //Mensaje de confirmacion
     const siguientePaciente = citas[0];
     const confirmacion = window.confirm(
       `¿Estas seguro de atender a ${siguientePaciente.pacienteNombre}?\n\n` +

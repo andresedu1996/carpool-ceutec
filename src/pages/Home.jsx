@@ -63,8 +63,6 @@ function Home() {
           filter: "brightness(0.65)",
         }}
       />
-
-      {/* Contenido */}
       <main
         style={{
           flex: 1,
@@ -73,7 +71,6 @@ function Home() {
           padding: "32px 20px",
         }}
       >
-        {/* Pantalla de Inicio */}
         {activeTab === "inicio" && (
           <div style={{ textAlign: "center", width: "100%" }}>
             <h1
@@ -87,7 +84,7 @@ function Home() {
             </h1>
             <div className="container">
               <div className="row justify-content-center g-4">
-                {/* Card Crear Expediente */}
+                {/* Card para crear expediente */}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -103,7 +100,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Card Agendar Cita */}
+                {/* Card  para agendar*/}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -119,7 +116,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Card Atender Paciente */}
+                {/* Card atender px */}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -135,7 +132,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Card Historial Atendidos */}
+                {/* Card historial */}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -151,7 +148,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Card Modificar Expediente */}
+                {/* Card de editar cita */}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -183,7 +180,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Card Lista Doctores */}
+                {/* Card doc list */}
                 <div className="col-md-3">
                   <div
                     className="card text-center h-100 shadow-lg"
@@ -202,7 +199,7 @@ function Home() {
             </div>
           </div>
         )}
-        {/* Regresar al menú principal */}
+        {/* volver al menu principal */}
         {activeTab !== "inicio" && (
           <div style={{ width: "100%" }}>
             <button

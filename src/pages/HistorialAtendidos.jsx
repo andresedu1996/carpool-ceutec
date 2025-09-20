@@ -158,7 +158,7 @@ function HistorialAtendidos() {
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       <h2 className="text-center mb-4">Historial de Pacientes Atendidos</h2>
 
-      {/* Barra de búsqueda y filtros */}
+      {/* Barra de busqueda y filtros */}
       <div className="card mb-3">
         <div className="card-body d-flex gap-2 flex-wrap align-items-center">
           <input

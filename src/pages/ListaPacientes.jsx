@@ -80,7 +80,7 @@ function ListaPacientes({ setActiveTab }) {
       };
     });
 
-    // filtro búsqueda + prioridad
+    // filtro de busquedo con proridad
     const filtrados = fusion.filter((c) => {
       const coincidePrioridad = filtro === "todas" || c.prioridad === filtro;
       if (!coincidePrioridad) return false;
@@ -108,7 +108,7 @@ function ListaPacientes({ setActiveTab }) {
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       <h2 className="text-center mb-4">Lista de Espera</h2>
 
-      {/* Barra búsqueda + filtro */}
+
       <div className="card mb-3">
         <div className="card-body d-flex gap-2 flex-wrap align-items-center">
           <input
@@ -136,7 +136,7 @@ function ListaPacientes({ setActiveTab }) {
         </div>
       </div>
 
-      {/* Tabla */}
+     
       <table className="table table-hover table-lg align-middle text-center">
         <thead className="table-dark">
           <tr>
@@ -179,7 +179,6 @@ function ListaPacientes({ setActiveTab }) {
         </tbody>
       </table>
 
-      {/* Botones de navegación */}
       <div className="d-flex justify-content-center gap-3 mt-4">
         <button
           className="btn btn-info px-4 d-flex align-items-center gap-2"
