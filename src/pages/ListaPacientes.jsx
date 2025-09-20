@@ -1,21 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import { collection, onSnapshot, query, where, getDoc, doc } from "firebase/firestore";
+import { FaUserCheck, FaHistory } from "react-icons/fa";
 
-function ListaPacientes() {
-  const [citas, setCitas] = useState([]); // todas las citas en_espera
-  const [pacientesMap, setPacientesMap] = useState(new Map()); // para almacenar datos de los pacientes
+function ListaPacientes({ setActiveTab }) {
+  const [citas, setCitas] = useState([]);
+  const [pacientesMap, setPacientesMap] = useState(new Map());
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState("todas");
 
   useEffect(() => {
-    // Escucha de citas
     const qCitas = query(collection(db, "citas"), where("estado", "==", "en_espera"));
     const unsubCitas = onSnapshot(qCitas, async (snap) => {
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setCitas(rows);
 
-      // Cargar datos de pacientes asociados
-      const pacientesSet = new Set(rows.map(c => c.pacienteId || c.pacienteExpediente));
-      const map = new Map(pacientesMap); // copiar estado actual
+      const pacientesSet = new Set(rows.map((c) => c.pacienteId || c.pacienteExpediente));
+      const map = new Map(pacientesMap);
       for (const id of pacientesSet) {
         if (!map.has(id)) {
           try {
@@ -36,6 +37,19 @@ function ListaPacientes() {
   }, []);
 
   const prioridadPeso = { alta: 0, media: 1, baja: 2 };
+
+  const obtenerColorPrioridad = (prioridad) => {
+    switch (prioridad) {
+      case "alta":
+        return { bg: "danger", text: "white" };
+      case "media":
+        return { bg: "warning", text: "black" };
+      case "baja":
+        return { bg: "primary", text: "white" };
+      default:
+        return { bg: "secondary", text: "white" };
+    }
+  };
 
   const listaOrdenada = useMemo(() => {
     const fusion = citas.map((cita) => {
@@ -66,7 +80,16 @@ function ListaPacientes() {
       };
     });
 
-    fusion.sort((a, b) => {
+    // filtro búsqueda + prioridad
+    const filtrados = fusion.filter((c) => {
+      const coincidePrioridad = filtro === "todas" || c.prioridad === filtro;
+      if (!coincidePrioridad) return false;
+      if (!busqueda.trim()) return true;
+      const cadena = `${c.nombre} ${c.expediente} ${c.doctor}`.toLowerCase();
+      return cadena.includes(busqueda.trim().toLowerCase());
+    });
+
+    filtrados.sort((a, b) => {
       const pa = prioridadPeso[a.prioridad] ?? 1;
       const pb = prioridadPeso[b.prioridad] ?? 1;
       if (pa !== pb) return pa - pb;
@@ -78,15 +101,44 @@ function ListaPacientes() {
       return String(a.expediente).localeCompare(String(b.expediente));
     });
 
-    return fusion;
-  }, [citas, pacientesMap]);
+    return filtrados;
+  }, [citas, pacientesMap, busqueda, filtro]);
 
   return (
-    <div>
-      <h2 className="text-center mb-3">Lista de Espera</h2>
+    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+      <h2 className="text-center mb-4">Lista de Espera</h2>
 
-      <table className="table table-striped table-dark">
-        <thead>
+      {/* Barra búsqueda + filtro */}
+      <div className="card mb-3">
+        <div className="card-body d-flex gap-2 flex-wrap align-items-center">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar por nombre, expediente o doctor"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            style={{ minWidth: 240 }}
+          />
+          <select
+            className="form-select"
+            style={{ width: 180 }}
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+          >
+            <option value="todas">Todas las prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+          <span className="ms-auto text-muted small">
+            Mostrando {listaOrdenada.length} de {citas.length}
+          </span>
+        </div>
+      </div>
+
+      {/* Tabla */}
+      <table className="table table-hover table-lg align-middle text-center">
+        <thead className="table-dark">
           <tr>
             <th>Expediente</th>
             <th>Nombre</th>
@@ -105,20 +157,45 @@ function ListaPacientes() {
               </td>
             </tr>
           ) : (
-            listaOrdenada.map((cita) => (
-              <tr key={cita.id}>
-                <td>{cita.expediente}</td>
-                <td>{cita.nombre}</td>
-                <td>{cita.edad}</td>
-                <td style={{ textTransform: "capitalize" }}>{cita.prioridad}</td>
-                <td>{cita.fecha}</td>
-                <td>{cita.hora}</td>
-                <td>{cita.doctor}</td>
-              </tr>
-            ))
+            listaOrdenada.map((cita) => {
+              const infoColor = obtenerColorPrioridad(cita.prioridad);
+              return (
+                <tr key={cita.id} className={`table-${infoColor.bg}`}>
+                  <td>{cita.expediente}</td>
+                  <td>{cita.nombre}</td>
+                  <td>{cita.edad}</td>
+                  <td>
+                    <span className={`badge bg-${infoColor.bg} text-${infoColor.text}`}>
+                      {cita.prioridad.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>{cita.fecha}</td>
+                  <td>{cita.hora}</td>
+                  <td>{cita.doctor}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
+
+      {/* Botones de navegación */}
+      <div className="d-flex justify-content-center gap-3 mt-4">
+        <button
+          className="btn btn-info px-4 d-flex align-items-center gap-2"
+          onClick={() => setActiveTab("atender")}
+        >
+          <FaUserCheck />
+          Atender Pacientes
+        </button>
+        <button
+          className="btn btn-success px-4 d-flex align-items-center gap-2"
+          onClick={() => setActiveTab("historial")}
+        >
+          <FaHistory />
+          Ver Historial
+        </button>
+      </div>
     </div>
   );
 }
