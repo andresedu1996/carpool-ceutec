@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import {
-  FaUserPlus,
-  FaListUl,
-  FaUserMd,
   FaArrowLeft,
-  FaCalendarAlt,
-  FaUserCheck,
-  FaHistory,
   FaIdCard,
   FaCar,
   FaRoute,
@@ -211,7 +205,9 @@ function Home() {
               <ListaPacientes setActiveTab={setActiveTab} />
             )}
 
-            {activeTab === "listaDoctores" && <ListaDoctores />}
+            {activeTab === "listaDoctores" && (
+              <ListaDoctores onAgendar={() => setActiveTab("agendar")} />
+            )}
 
             {activeTab === "agendar" && <AgendarViaje />}
 

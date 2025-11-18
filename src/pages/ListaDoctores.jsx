@@ -1,6 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
+import {
+  FaCarSide,
+  FaClock,
+  FaMapMarkerAlt,
+  FaMoneyBillWave,
+  FaPhone,
+  FaUniversity,
+  FaUsers,
+  FaWhatsapp,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const USE_FIREBASE = true;
 
@@ -20,9 +31,9 @@ const defaultAvatar =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'>
-      <rect width='128' height='128' fill='#222'/>
-      <circle cx='64' cy='46' r='22' fill='#fff'/>
-      <rect x='32' y='80' width='64' height='35' rx='6' fill='#fff'/>
+      <rect width='128' height='128' fill='#0f172a'/>
+      <circle cx='64' cy='46' r='22' fill='#22c55e'/>
+      <rect x='32' y='80' width='64' height='35' rx='6' fill='#22c55e'/>
     </svg>
   `);
 
@@ -56,11 +67,14 @@ function getImage(conductor) {
   return defaultAvatar;
 }
 
-function ListaConductores() {
+function ListaConductores({ onAgendar }) {
   const [conductores, setConductores] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
+      setCargando(true);
       let base = [];
 
       if (USE_FIREBASE) {
@@ -70,7 +84,6 @@ function ListaConductores() {
             id: doc.id,
             ...doc.data(),
           }));
-
           base = fromFb;
         } catch (e) {
           console.warn("No se pudo cargar desde Firebase", e);
@@ -78,57 +91,160 @@ function ListaConductores() {
       }
 
       setConductores(base);
+      setCargando(false);
     })();
   }, []);
 
-  return (
-    <div className="container-fluid min-vh-100 d-flex flex-column">
-      <h2 className="text-center my-4">Conductores Disponibles</h2>
-
-      <div className="row flex-grow-1">
-        {conductores.map((c) => (
+  const cards = useMemo(() => {
+    return conductores.map((c) => {
+      const telefonoWa = c.telefono
+        ? c.telefono.toString().replace(/\D/g, "")
+        : "";
+      return (
+        <div
+          key={c.id}
+          className="col-12 col-md-6 col-lg-4 d-flex align-items-stretch"
+        >
           <div
-            key={c.id}
-            className="col-12 col-sm-6 col-md-4 col-lg-3 d-flex align-items-stretch"
+            className="card mb-4"
+            style={{
+              backgroundColor: "#0f172a",
+              borderRadius: 16,
+              border: "1px solid rgba(59,130,246,0.15)",
+              color: "#f8fafc",
+              overflow: "hidden",
+              width: "100%",
+            }}
           >
-            <div className="card bg-dark text-light mb-4 shadow-sm w-100">
-              <div className="ratio ratio-4x3 bg-black">
-                <img
-                  src={getImage(c)}
-                  alt={c.nombre}
-                  className="w-100 h-100"
-                  style={{ objectFit: "contain" }}
-                  onError={(e) => (e.currentTarget.src = defaultAvatar)}
-                />
+            <div className="ratio ratio-4x3 bg-black">
+              <img
+                src={getImage(c)}
+                alt={c.nombre}
+                className="w-100 h-100"
+                style={{ objectFit: "cover" }}
+                onError={(e) => (e.currentTarget.src = defaultAvatar)}
+              />
+            </div>
+
+            <div className="card-body d-flex flex-column text-white">
+              <div className="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 className="card-title mb-1" style={{ color: "#e2e8f0" }}>
+                    {c.nombre}
+                  </h5>
+                  <small style={{ color: "rgba(226,232,240,0.75)" }}>
+                    {c.vehiculo || "Vehículo N/D"} — {c.colonia || "Colonia N/D"}
+                  </small>
+                </div>
               </div>
 
-              <div className="card-body d-flex flex-column">
-                <h5 className="card-title mb-2">{c.nombre}</h5>
-
-                <p className="card-text flex-grow-1">
-                  <strong>Colonia:</strong> {c.colonia} <br />
-                  <strong>Teléfono:</strong> {c.telefono} <br />
-                  <strong>Pasajeros:</strong> {c.pasajeros} <br />
-                  <strong>Precio:</strong> L {c.precio} <br />
-                  <strong>Horario salida:</strong> {c.horario} <br />
-                  <strong>Placa:</strong> {c.placa} <br />
-                  <strong>Vehículo:</strong> {c.vehiculo}
+              <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+                <p className="mb-1">
+                  <FaClock className="me-1" />
+                  <strong>Horario(s):</strong>{" "}
+                  {Array.isArray(c.horarios)
+                    ? c.horarios.join(", ")
+                    : c.horario || "N/D"}
                 </p>
+                <p className="mb-1">
+                  <FaUsers className="me-1" />
+                  <strong>Pasajeros:</strong> {c.pasajeros || "N/D"}
+                </p>
+                <p className="mb-1">
+                  <FaMoneyBillWave className="me-1" />
+                  <strong>Precio:</strong>{" "}
+                  {c.precio ? `L ${c.precio}` : "N/D"}
+                </p>
+                <p className="mb-1">
+                  <FaPhone className="me-1" />
+                  <strong>Telefono:</strong> {c.telefono || "N/D"}
+                </p>
+                <p className="mb-1">
+                  <FaUniversity className="me-1" />
+                  <strong>Campus:</strong>{" "}
+                  {(c.campus || []).length > 0
+                    ? c.campus.join(", ")
+                    : "Sin especificar"}
+                </p>
+              </div>
 
-                <button className="btn btn-primary mt-auto">
-                  Agendar Viaje
+              <div className="mt-auto d-flex flex-wrap gap-2">
+                <button
+                  className="btn btn-success flex-grow-1"
+                  style={{ borderRadius: 12 }}
+                  onClick={() =>
+                    onAgendar ? onAgendar() : navigate("/agendar-viaje")
+                  }
+                >
+                  Agendar viaje
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-success"
+                  style={{ borderRadius: 12 }}
+                  disabled={!telefonoWa}
+                  onClick={() => {
+                    if (!telefonoWa) return;
+                    window.open(`https://wa.me/${telefonoWa}`, "_blank");
+                  }}
+                >
+                  <FaWhatsapp /> WhatsApp
                 </button>
               </div>
             </div>
           </div>
-        ))}
+        </div>
+      );
+    });
+  }, [conductores, navigate, onAgendar]);
 
-        {conductores.length === 0 && (
-          <div className="col-12">
-            <div className="alert alert-warning text-center">
-              No hay conductores registrados.
+  return (
+    <div
+      style={{
+        background:
+          "radial-gradient(circle at top, #22c55e20 0%, #020617 55%, #000 100%)",
+        minHeight: "100vh",
+        padding: "24px 12px",
+        color: "#f8fafc",
+      }}
+    >
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg, #22c55e, #16a34a, #15803d)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0b1120",
+              }}
+            >
+              <FaCarSide />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, color: "#e2e8f0", fontSize: "1.6rem" }}>
+                Conductores disponibles
+              </h2>
+              <small style={{ color: "rgba(226,232,240,0.7)" }}>
+                Consulta la información y agenda tu viaje.
+              </small>
             </div>
           </div>
+        </div>
+
+        {cargando ? (
+          <p style={{ color: "#e2e8f0" }}>Cargando conductores...</p>
+        ) : conductores.length === 0 ? (
+          <div className="alert alert-warning text-center">
+            No hay conductores registrados.
+          </div>
+        ) : (
+          <div className="row g-3">{cards}</div>
         )}
       </div>
     </div>

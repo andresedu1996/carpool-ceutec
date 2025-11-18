@@ -369,13 +369,13 @@ function PanelConductor() {
       <main
         style={{
           flex: 1,
-          padding: "20px",
-          maxWidth: 1100,
+          padding: "24px",
+          maxWidth: 1200,
           width: "100%",
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: 20,
+          gridTemplateColumns: "300px 1fr",
+          gap: 24,
         }}
       >
         {/* Sidebar de tabs */}
@@ -383,7 +383,7 @@ function PanelConductor() {
           style={{
             backgroundColor: "rgba(15,23,42,0.95)",
             borderRadius: 16,
-            padding: 16,
+            padding: 20,
             border: "1px solid rgba(148,163,184,0.4)",
             height: "fit-content",
           }}
@@ -394,11 +394,19 @@ function PanelConductor() {
               display: "flex",
               alignItems: "center",
               gap: 8,
+              fontSize: 20,
             }}
           >
             <FaUser /> <span>Menú</span>
           </h5>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              fontSize: 15,
+            }}
+          >
             <button
               className="btn btn-sm text-start"
               style={{
@@ -409,6 +417,9 @@ function PanelConductor() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                padding: "10px 12px",
+                fontSize: 15,
+                borderRadius: 12,
               }}
               onClick={() => setActiveTab("inicio")}
             >
@@ -424,6 +435,9 @@ function PanelConductor() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                padding: "10px 12px",
+                fontSize: 15,
+                borderRadius: 12,
               }}
               onClick={() => setActiveTab("viajes")}
             >
@@ -439,6 +453,9 @@ function PanelConductor() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                padding: "10px 12px",
+                fontSize: 15,
+                borderRadius: 12,
               }}
               onClick={() => setActiveTab("perfil")}
             >
@@ -451,9 +468,9 @@ function PanelConductor() {
             <div
               style={{
                 marginTop: 20,
-                paddingTop: 12,
+                paddingTop: 14,
                 borderTop: "1px solid rgba(55,65,81,0.8)",
-                fontSize: 13,
+                fontSize: 15,
               }}
             >
               <p style={{ marginBottom: 4 }}>

@@ -15,6 +15,20 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
+import {
+  FaCarSide,
+  FaUserCircle,
+  FaMapMarkerAlt,
+  FaClock,
+  FaUsers,
+  FaMoneyBillWave,
+  FaCalendarAlt,
+  FaPhone,
+  FaSchool,
+  FaUniversity,
+  FaWhatsapp,
+} from "react-icons/fa";
+
 function AgendarViaje() {
   const [conductores, setConductores] = useState([]);
   const [viajes, setViajes] = useState([]);
@@ -30,7 +44,7 @@ function AgendarViaje() {
 
   const [agendando, setAgendando] = useState(false);
 
-  // ✅ Obtener pasajero según usuario logueado
+  // Obtener pasajero segun usuario logueado
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -40,7 +54,6 @@ function AgendarViaje() {
       }
 
       try {
-        // Buscar pasajero por email
         const qPasajero = query(
           collection(db, "pasajeros"),
           where("email", "==", user.email)
@@ -51,7 +64,6 @@ function AgendarViaje() {
           const d = snap.docs[0];
           setPasajero({ id: d.id, ...d.data() });
         } else {
-          // Si no existe, crear uno básico
           const ref = doc(collection(db, "pasajeros"));
           const payload = {
             nombre: user.displayName || user.email,
@@ -83,7 +95,7 @@ function AgendarViaje() {
     loadConductores();
   }, []);
 
-  // Viajes ya agendados → evitar horarios ocupados
+  // Viajes ya agendados para evitar horarios ocupados
   useEffect(() => {
     const qViajes = query(collection(db, "viajes"));
     const unsub = onSnapshot(qViajes, (snap) => {
@@ -93,7 +105,7 @@ function AgendarViaje() {
     return () => unsub();
   }, []);
 
-  // ✅ Horarios disponibles del conductor (soporta 'horario' string o 'horarios' array)
+  // Horarios disponibles del conductor con control de cupos (pasajeros)
   const horariosDisponibles = useMemo(() => {
     if (!form.conductorId || !form.fecha) return [];
 
@@ -101,13 +113,9 @@ function AgendarViaje() {
     if (!conductor) return [];
 
     let posibles = [];
-
-    // Caso 1: conductor.horarios (array)
     if (Array.isArray(conductor.horarios)) {
       posibles = conductor.horarios;
-    }
-    // Caso 2: conductor.horario (string simple)
-    else if (
+    } else if (
       typeof conductor.horario === "string" &&
       conductor.horario.trim() !== ""
     ) {
@@ -116,14 +124,42 @@ function AgendarViaje() {
       return [];
     }
 
+    const capacidad = Number(conductor.pasajeros) || 0;
     const ocupados = viajes
       .filter(
         (v) => v.conductorId === form.conductorId && v.fecha === form.fecha
       )
-      .map((v) => v.horario);
+      .reduce((acc, v) => {
+        acc[v.horario] = (acc[v.horario] || 0) + 1;
+        return acc;
+      }, {});
 
-    return posibles.filter((h) => !ocupados.includes(h));
+    return posibles.map((hora) => {
+      const usados = ocupados[hora] || 0;
+      const disponible = capacidad > 0 ? usados < capacidad : usados === 0;
+      const restantes = capacidad > 0 ? Math.max(capacidad - usados, 0) : 0;
+      return { hora, disponible, restantes, capacidad };
+    });
   }, [form.conductorId, form.fecha, conductores, viajes]);
+
+  // Limpiar horario seleccionado si ya no está disponible
+  useEffect(() => {
+    if (!form.horario) return;
+    const slot = horariosDisponibles.find((h) => h.hora === form.horario);
+    if (!slot || !slot.disponible) {
+      setForm((f) => ({ ...f, horario: "" }));
+    }
+  }, [form.horario, horariosDisponibles]);
+
+  const conductorSeleccionado = useMemo(() => {
+    if (!form.conductorId) return null;
+    return conductores.find((c) => c.id === form.conductorId) || null;
+  }, [conductores, form.conductorId]);
+
+  const telefonoWhatsApp = useMemo(() => {
+    if (!conductorSeleccionado?.telefono) return "";
+    return conductorSeleccionado.telefono.toString().replace(/\D/g, "");
+  }, [conductorSeleccionado]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -137,7 +173,7 @@ function AgendarViaje() {
     if (!pasajero)
       return alert("No se pudo obtener el pasajero. Inicia sesión de nuevo.");
     if (!form.conductorId || !form.fecha || !form.horario)
-      return alert("Complete todos los campos.");
+      return alert("Completa todos los campos.");
 
     setAgendando(true);
 
@@ -174,78 +210,367 @@ function AgendarViaje() {
 
   // ------------------- UI -------------------
   if (loadingPasajero) {
-    return <p>Cargando datos del pasajero...</p>;
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at top, #1f2937 0%, #020617 55%, #000 100%)",
+          color: "#f9fafb",
+        }}
+      >
+        <div className="spinner-border text-success me-2" role="status" />
+        <span>Cargando datos del pasajero...</span>
+      </div>
+    );
   }
 
   if (!pasajero) {
-    return <p>Debe iniciar sesión para agendar un viaje.</p>;
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at top, #1f2937 0%, #020617 55%, #000 100%)",
+          color: "#f9fafb",
+          textAlign: "center",
+          padding: 20,
+        }}
+      >
+        Debes iniciar sesión para agendar un viaje.
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto" }}>
-      <h2 className="text-center mb-3">Agendar Viaje</h2>
+    <div
+      style={{
+        background:
+          "radial-gradient(circle at top, #22c55e20 0%, #020617 55%, #000 100%)",
+        minHeight: "100vh",
+        padding: "24px 12px",
+        color: "#f8fafc",
+      }}
+    >
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        {/* Encabezado */}
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg, #22c55e, #16a34a, #15803d)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0b1120",
+              }}
+            >
+              <FaCarSide />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, color: "#e2e8f0", fontSize: "1.6rem" }}>
+                Agendar Viaje
+              </h2>
+              <small style={{ color: "rgba(226,232,240,0.7)" }}>
+                Elige conductor, fecha y horario para tu próximo viaje.
+              </small>
+            </div>
+          </div>
+        </div>
 
-      {/* Info pasajero (usuario logueado) */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <p>
-            <strong>Nombre:</strong> {pasajero.nombre}
-          </p>
-          <p>
-            <strong>Email:</strong> {pasajero.email}
-          </p>
-          <p>
-            <strong>Identidad:</strong> {pasajero.identidad || "N/D"}
-          </p>
+        {/* Card pasajero */}
+        <div className="mb-3">
+          <div
+            className="card"
+            style={{
+              backgroundColor: "rgba(15,23,42,0.95)",
+              borderRadius: 16,
+              border: "1px solid rgba(148,163,184,0.4)",
+            }}
+          >
+            <div className="card-body d-flex align-items-center gap-3">
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "999px",
+                  background: "rgba(34,197,94,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <FaUserCircle size={22} color="#fff" />
+              </div>
+              <div style={{ fontSize: 14, color: "#e2e8f0" }}>
+                <div style={{ fontWeight: 600, color: "#e2e8f0"  }}>{pasajero.nombre}</div>
+                <div style={{ opacity: 0.8 }}>{pasajero.email}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Layout principal */}
+        <div className="row g-3">
+          {/* Formulario */}
+          <div className="col-12 col-lg-6">
+            <div
+              className="card h-100"
+              style={{
+                backgroundColor: "#0f172a",
+                borderRadius: 16,
+                border: "1px solid rgba(59,130,246,0.15)",
+                color: "#f8fafc",
+              }}
+            >
+              <div className="card-body text-white">
+                <h5 style={{ color: "#e2e8f0", marginBottom: 12 }}>
+                  Datos del viaje
+                </h5>
+                <form onSubmit={agendarViaje}>
+                  <label className="form-label mt-2">Conductor</label>
+                  <select
+                    name="conductorId"
+                    className="form-control mb-2 bg-dark text-light"
+                    value={form.conductorId}
+                    onChange={handleChange}
+                    style={{
+                      borderColor: "#1f2937",
+                      fontSize: 14,
+                    }}
+                  >
+                    <option value="">Seleccione conductor</option>
+                    {conductores.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre} — {c.colonia}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="row">
+                    <div className="col-12 col-sm-6">
+                      <label className="form-label">Fecha</label>
+                      <input
+                        type="date"
+                        name="fecha"
+                        className="form-control mb-2 bg-dark text-light"
+                        value={form.fecha}
+                        onChange={handleChange}
+                        style={{ borderColor: "#1f2937", fontSize: 14 }}
+                      />
+                    </div>
+                    <div className="col-12 col-sm-6">
+                      <label className="form-label">Horario</label>
+                      <select
+                        name="horario"
+                        className="form-control mb-2 bg-dark text-light"
+                        value={form.horario}
+                        onChange={handleChange}
+                        disabled={!form.fecha || horariosDisponibles.length === 0}
+                        style={{ borderColor: "#1f2937", fontSize: 14 }}
+                      >
+                        <option value="">
+                          {form.fecha
+                            ? horariosDisponibles.length > 0
+                              ? "Seleccione horario"
+                              : "Sin horarios disponibles"
+                            : "Seleccione primero una fecha"}
+                        </option>
+                        {horariosDisponibles.map((h, i) => (
+                          <option
+                            key={i}
+                            value={h.hora}
+                            disabled={!h.disponible}
+                          >
+                            {h.hora}
+                            {h.capacidad > 0
+                              ? ` — ${h.restantes} de ${h.capacidad} libres`
+                              : ""}
+                            {!h.disponible ? " (No disponible)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Resumen rápido selección */}
+                  {form.fecha && form.horario && (
+                    <div
+                      className="mt-2 mb-2"
+                      style={{ fontSize: 13, opacity: 0.9 }}
+                    >
+                      <span
+                        className="badge me-2"
+                        style={{
+                          backgroundColor: "#1f2937",
+                          color: "#e5e7eb",
+                        }}
+                      >
+                        <FaCalendarAlt className="me-1" />
+                        {form.fecha}
+                      </span>
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: "#1f2937",
+                          color: "#e5e7eb",
+                        }}
+                      >
+                        <FaClock className="me-1" />
+                        {form.horario}
+                      </span>
+                    </div>
+                  )}
+
+                  <button
+                    className="btn btn-success w-100 mt-2"
+                    disabled={agendando}
+                    style={{ padding: "10px 0", borderRadius: 999 }}
+                  >
+                    {agendando ? "Agendando…" : "Confirmar viaje"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          {/* Info conductor seleccionado */}
+          <div className="col-12 col-lg-6">
+            <div
+              className="card h-100"
+              style={{
+                backgroundColor: "#020617",
+                borderRadius: 16,
+                border: "1px solid rgba(148,163,184,0.2)",
+                color: "#f8fafc",
+              }}
+            >
+              <div className="card-body text-white">
+                <h5 style={{ color: "#e2e8f0", marginBottom: 12 }}>
+                  Conductor seleccionado
+                </h5>
+                {conductorSeleccionado ? (
+                  <>
+                    <div className="d-flex align-items-center mb-3">
+                      <div
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: "999px",
+                          background:
+                            "linear-gradient(135deg,#22c55e,#16a34a)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 26,
+                          marginRight: 10,
+                          color: "#f9fafb",
+                        }}
+                      >
+                        {conductorSeleccionado.nombre
+                          ? conductorSeleccionado.nombre
+                              .charAt(0)
+                              .toUpperCase()
+                          : "C"}
+                      </div>
+                      <div style={{ fontSize: 14 }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {conductorSeleccionado.nombre}
+                        </div>
+                        <div style={{ opacity: 0.8 }}>
+                          {conductorSeleccionado.vehiculo || "Vehículo N/D"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p>
+                      <FaMapMarkerAlt className="me-1" />
+                      <strong>Colonia:</strong>{" "}
+                      {conductorSeleccionado.colonia || "N/D"}
+                    </p>
+                    <p>
+                      <FaClock className="me-1" />
+                      <strong>Horario(s):</strong>{" "}
+                      {Array.isArray(conductorSeleccionado.horarios)
+                        ? conductorSeleccionado.horarios.join(", ")
+                        : conductorSeleccionado.horario || "N/D"}
+                    </p>
+                    <p>
+                      <FaUsers className="me-1" />
+                      <strong>Pasajeros:</strong>{" "}
+                      {conductorSeleccionado.pasajeros || "N/D"}
+                    </p>
+                    <p>
+                      <FaMoneyBillWave className="me-1" />
+                      <strong>Precio:</strong>{" "}
+                      {conductorSeleccionado.precio
+                        ? `L ${conductorSeleccionado.precio}`
+                        : "N/D"}
+                    </p>
+                    <p>
+                      <FaPhone className="me-1" />
+                      <strong>Teléfono:</strong>{" "}
+                      {conductorSeleccionado.telefono || "N/D"}
+                    </p>
+                    <p>
+                      <FaSchool className="me-1" />
+                      <strong>Días clase:</strong>{" "}
+                      {(conductorSeleccionado.diasClase || []).length > 0
+                        ? conductorSeleccionado.diasClase.join(", ")
+                        : "Sin especificar"}
+                    </p>
+                    <p>
+                      <FaUniversity className="me-1" />
+                      <strong>Campus:</strong>{" "}
+                      {(conductorSeleccionado.campus || []).length > 0
+                        ? conductorSeleccionado.campus.join(", ")
+                        : "Sin especificar"}
+                    </p>
+
+                    <button
+                      type="button"
+                      className="btn btn-outline-success w-100 mt-3"
+                      disabled={!telefonoWhatsApp}
+                      onClick={() => {
+                        if (!telefonoWhatsApp) return;
+                        window.open(
+                          `https://wa.me/${telefonoWhatsApp}`,
+                          "_blank"
+                        );
+                      }}
+                      style={{
+                        borderRadius: 999,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <FaWhatsapp />
+                      Contactar por WhatsApp
+                    </button>
+                  </>
+                ) : (
+                  <p style={{ color: "rgba(248,250,252,0.7)", marginTop: 8 }}>
+                    Selecciona un conductor en el formulario para ver sus datos
+                    y poder contactarlo.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Formulario */}
-      <form onSubmit={agendarViaje}>
-        <label className="form-label">Conductor</label>
-        <select
-          name="conductorId"
-          className="form-control mb-2"
-          value={form.conductorId}
-          onChange={handleChange}
-        >
-          <option value="">Seleccione conductor</option>
-          {conductores.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre} — {c.colonia}
-            </option>
-          ))}
-        </select>
-
-        <label className="form-label">Fecha</label>
-        <input
-          type="date"
-          name="fecha"
-          className="form-control mb-2"
-          value={form.fecha}
-          onChange={handleChange}
-        />
-
-        <label className="form-label">Horario</label>
-        <select
-          name="horario"
-          className="form-control mb-3"
-          value={form.horario}
-          onChange={handleChange}
-          disabled={!form.fecha}
-        >
-          <option value="">Seleccione horario</option>
-          {horariosDisponibles.map((h, i) => (
-            <option key={i} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
-
-        <button className="btn btn-primary w-100" disabled={agendando}>
-          {agendando ? "Agendando…" : "Agendar Viaje"}
-        </button>
-      </form>
     </div>
   );
 }
