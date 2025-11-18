@@ -1,103 +1,136 @@
 import React, { useEffect, useState } from "react";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 import {
   doc,
   setDoc,
   getDoc,
-  runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 function PacienteForm() {
-  const [paciente, setPaciente] = useState({
+  const [user, setUser] = useState(null);
+  const [cargandoUsuario, setCargandoUsuario] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+
+  const [datos, setDatos] = useState({
     nombre: "",
-    fechaNacimiento: "",
-    edad: "",
-    ciudad: "",
+    campus: "",
+    telefono: "",
     direccion: "",
   });
 
-  const [nextPreview, setNextPreview] = useState("—");
-  const [loading, setLoading] = useState(false);
-  const formatExp = (n, width = 6) => String(n).padStart(width, "0");
-
+  // Escuchar usuario logueado y cargar sus datos si ya existen
   useEffect(() => {
-    (async () => {
-      try {
-        const counterRef = doc(db, "counters", "pacientes");
-        const snap = await getDoc(counterRef);
-        const last = snap.exists() ? snap.data().lastExpediente || 0 : 0;
-        setNextPreview(formatExp(last + 1));
-      } catch (e) {
-        console.warn("No se pudo leer el contador de expedientes:", e);
-        setNextPreview("—");
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setCargandoUsuario(true);
+      setMensaje("");
+
+      if (!u) {
+        setUser(null);
+        setCargandoUsuario(false);
+        return;
       }
-    })();
+
+      setUser(u);
+
+      try {
+        const ref = doc(db, "usuarios", u.uid);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setDatos({
+            nombre: data.nombre || "",
+            campus: data.campus || "",
+            telefono: data.telefono || "",
+            direccion: data.direccion || "",
+          });
+        } else {
+          // Si no hay doc, dejamos el form vacío (salvo que quieras poner defaults)
+          setDatos({
+            nombre: "",
+            campus: "",
+            telefono: "",
+            direccion: "",
+          });
+        }
+      } catch (err) {
+        console.error("Error cargando datos personales:", err);
+        setMensaje("No se pudieron cargar tus datos. Intenta más tarde.");
+      } finally {
+        setCargandoUsuario(false);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   const handleChange = (e) => {
-    setPaciente({ ...paciente, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setDatos((prev) => ({ ...prev, [name]: value }));
   };
 
-  const agregarPaciente = async (e) => {
+  const guardarDatos = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!user) {
+      alert("Debes iniciar sesión para registrar tus datos personales.");
+      return;
+    }
+
+    setGuardando(true);
+    setMensaje("");
 
     try {
-      // Genera expediente unico
-      const expedienteNum = await runTransaction(db, async (tx) => {
-        const counterRef = doc(db, "counters", "pacientes");
-        const counterSnap = await tx.get(counterRef);
+      const ref = doc(db, "usuarios", user.uid);
 
-        let last = 0;
-        if (counterSnap.exists()) {
-          last = counterSnap.data().lastExpediente || 0;
-        }
-        const next = last + 1;
+      await setDoc(
+        ref,
+        {
+          // Campos que ya existen (email/role) se mantienen porque usamos merge
+          nombre: datos.nombre,
+          campus: datos.campus,
+          telefono: datos.telefono,
+          direccion: datos.direccion,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true } // 👈 así no borras email, role, etc.
+      );
 
-        tx.set(counterRef, { lastExpediente: next }, { merge: true });
-        return next;
-      });
-
-      const expediente = formatExp(expedienteNum);
-
-      // --- Guardar SOLO en "pacientes" (no lista de espera) ---
-      const pacienteDocRef = doc(db, "pacientes", expediente);
-      await setDoc(pacienteDocRef, {
-        expediente,
-        ...paciente,
-        createdAt: serverTimestamp(),
-      });
-
-      alert(`✅ Paciente agregado. Expediente: ${expediente}`);
-
-      // Reset del formulario
-      setPaciente({
-        nombre: "",
-        fechaNacimiento: "",
-        edad: "",
-        ciudad: "",
-        direccion: "",
-      });
-      setNextPreview(formatExp(expedienteNum + 1));
-    } catch (e) {
-      console.error("❌ Error:", e);
-      alert("Error: revisa la consola");
+      setMensaje("✅ Datos personales guardados correctamente.");
+    } catch (err) {
+      console.error("Error guardando datos personales:", err);
+      setMensaje("❌ Ocurrió un error al guardar tus datos.");
     } finally {
-      setLoading(false);
+      setGuardando(false);
     }
   };
 
+  if (cargandoUsuario) {
+    return <p>Cargando información del usuario...</p>;
+  }
+
+  if (!user) {
+    return <p>Debes iniciar sesión para registrar tus datos personales.</p>;
+  }
+
   return (
     <form
-      onSubmit={agregarPaciente}
+      onSubmit={guardarDatos}
       style={{ textAlign: "left", maxWidth: 400, margin: "0 auto" }}
     >
-      <h2 className="text-center mb-3">Formulario de Pacientes</h2>
+      <h2 className="text-center mb-3">Datos Personales</h2>
 
-      <div className="alert alert-info py-2">
-        <strong>Siguiente expediente:</strong>{" "}
-        <span className="badge bg-primary">{nextPreview}</span>
+      {/* Email mostrado solo como referencia */}
+      <div className="mb-2">
+        <label className="form-label">Correo</label>
+        <input
+          type="email"
+          className="form-control"
+          value={user.email || ""}
+          disabled
+        />
       </div>
 
       <input
@@ -105,53 +138,49 @@ function PacienteForm() {
         name="nombre"
         placeholder="Nombre completo"
         className="form-control mb-2"
-        value={paciente.nombre}
+        value={datos.nombre}
         onChange={handleChange}
         required
-      />
-
-      <input
-        type="date"
-        name="fechaNacimiento"
-        className="form-control mb-2"
-        value={paciente.fechaNacimiento}
-        onChange={handleChange}
-        required
-      />
-
-      <input
-        type="number"
-        name="edad"
-        placeholder="Edad"
-        className="form-control mb-2"
-        value={paciente.edad}
-        onChange={handleChange}
-        required
-        min="0"
       />
 
       <input
         type="text"
-        name="ciudad"
-        placeholder="Ciudad"
+        name="campus"
+        placeholder="Campus"
         className="form-control mb-2"
-        value={paciente.ciudad}
+        value={datos.campus}
+        onChange={handleChange}
+        required
+      />
+
+      <input
+        type="tel"
+        name="telefono"
+        placeholder="Número de teléfono"
+        className="form-control mb-2"
+        value={datos.telefono}
         onChange={handleChange}
         required
       />
 
       <textarea
         name="direccion"
-        placeholder="Dirección exacta"
+        placeholder="Dirección"
         className="form-control mb-3"
         rows={3}
-        value={paciente.direccion}
+        value={datos.direccion}
         onChange={handleChange}
         required
       />
 
-      <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-        {loading ? "Guardando..." : "Guardar Paciente"}
+      {mensaje && (
+        <div className="alert alert-info py-2">
+          {mensaje}
+        </div>
+      )}
+
+      <button type="submit" className="btn btn-primary w-100" disabled={guardando}>
+        {guardando ? "Guardando..." : "Guardar Datos"}
       </button>
     </form>
   );
