@@ -11,6 +11,7 @@ import {
   onSnapshot,
   getDocs,
   setDoc,
+   addDoc, //Logs push token
 } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -375,24 +376,40 @@ function PanelConductor() {
 
       const swRegistration = await navigator.serviceWorker.ready;
       const token = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: swRegistration,
-      });
+  vapidKey,
+  serviceWorkerRegistration: swRegistration,
+});
 
-      if (!token) {
-        setPushError("No se pudo obtener el token de notificaciones.");
-        return;
-      }
+if (!token) {
+  setPushError("No se pudo obtener el token de notificaciones.");
+  return;
+}
 
-      await setDoc(doc(db, "conductores", user.uid, "tokens", token), {
-        token,
-        createdAt: new Date().toISOString(),
-        userAgent: navigator.userAgent || "desconocido",
-      });
+console.log("FCM push token obtenido:", token);
 
-      setPushToken(token);
-      setPushStatus("granted");
-      setMensaje("🔔 Notificaciones activadas para este dispositivo.");
+await setDoc(doc(db, "conductores", user.uid, "tokens", token), {
+  token,
+  createdAt: new Date().toISOString(),
+  userAgent: navigator.userAgent || "desconocido",
+});
+
+// Log en colección global de logs
+try {
+  await addDoc(collection(db, "logs_push_tokens"), {
+    uid: user.uid,
+    email: user.email || null,
+    token,
+    createdAt: new Date().toISOString(),
+    userAgent: navigator.userAgent || "desconocido",
+    platform: navigator.platform || "desconocido",
+  });
+} catch (logErr) {
+  console.warn("No se pudo guardar el log del push token:", logErr);
+}
+
+setPushToken(token);
+setPushStatus("granted");
+setMensaje("🔔 Notificaciones activadas para este dispositivo.");
     } catch (err) {
       console.error("Error activando notificaciones:", err);
       const message = err?.message || "No se pudieron activar las notificaciones.";
