@@ -963,7 +963,7 @@ function PanelConductor() {
                   </div>
                 </div>
               </div>
-
+{/*
               <div className="row g-3 mb-3">
                 <div className="col-12">
                   <div
@@ -1029,7 +1029,7 @@ function PanelConductor() {
                   </div>
                 </div>
               </div>
-
+*/}
               {/* Info conductor (vista completa, se mantiene igual en desktop) */}
               {conductor ? (
                 <div
