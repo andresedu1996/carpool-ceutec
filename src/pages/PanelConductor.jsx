@@ -1,6 +1,6 @@
 // src/pages/PanelConductor.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import { auth, db } from "../firebase";
+import { auth, db, messagingPromise } from "../firebase";
 import {
   doc,
   getDoc,
@@ -10,9 +10,11 @@ import {
   where,
   onSnapshot,
   getDocs,
+  setDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { getToken, onMessage } from "firebase/messaging";
 
 import {
   FaSignOutAlt,
@@ -54,6 +56,11 @@ function PanelConductor() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingConductor, setLoadingConductor] = useState(true);
   const [loadingViajes, setLoadingViajes] = useState(true);
+
+  const [pushStatus, setPushStatus] = useState("checking");
+  const [pushToken, setPushToken] = useState("");
+  const [pushError, setPushError] = useState("");
+  const [activandoPush, setActivandoPush] = useState(false);
 
   const [activeTab, setActiveTab] = useState("inicio");
   const [mensaje, setMensaje] = useState("");
@@ -188,6 +195,58 @@ function PanelConductor() {
     loadPasajeros();
   }, [viajes, pasajerosInfo]);
 
+  // 2.6) Escuchar tokens guardados para mostrar estado de notificaciones
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const supportsNotifications = typeof Notification !== "undefined";
+    if (!supportsNotifications) {
+      setPushStatus("unsupported");
+      return undefined;
+    }
+
+    const ref = collection(db, "conductores", user.uid, "tokens");
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.empty) {
+        setPushToken("");
+        if (Notification.permission === "denied") {
+          setPushStatus("denied");
+        } else {
+          setPushStatus("idle");
+        }
+        return;
+      }
+
+      const storedToken = snap.docs[0].data()?.token || snap.docs[0].id;
+      setPushToken(storedToken);
+      setPushStatus("granted");
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  // 2.7) Listener de mensajes en primer plano
+  useEffect(() => {
+    let unsubscribe = null;
+
+    messagingPromise.then((messaging) => {
+      if (!messaging) return;
+      unsubscribe = onMessage(messaging, (payload) => {
+        const title = payload?.notification?.title || payload?.data?.title;
+        const body = payload?.notification?.body || payload?.data?.body;
+
+        if (body || title) {
+          const label = title ? `${title}: ${body || ""}` : body;
+          setMensaje(`📩 ${label}`);
+        }
+      });
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   // 3) Suscribirse a viajes del conductor cuando haya user
   useEffect(() => {
     if (!user) return;
@@ -268,6 +327,79 @@ function PanelConductor() {
         return { ...prev, campus: [...actual, camp] };
       }
     });
+  };
+
+  useEffect(() => {
+    if (typeof Notification === "undefined") {
+      setPushStatus("unsupported");
+      return;
+    }
+
+    if (Notification.permission === "granted") setPushStatus("granted");
+    else if (Notification.permission === "denied") setPushStatus("denied");
+    else setPushStatus("idle");
+  }, []);
+
+  const activarNotificaciones = async () => {
+    if (!user) return;
+    setPushError("");
+
+    try {
+      setActivandoPush(true);
+
+      if (typeof Notification === "undefined") {
+        setPushStatus("unsupported");
+        setPushError("Este navegador no soporta notificaciones push.");
+        return;
+      }
+
+      const messaging = await messagingPromise;
+      if (!messaging) {
+        setPushStatus("unsupported");
+        setPushError("FCM no es soportado en este navegador.");
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushStatus("denied");
+        setPushError("Debes permitir las notificaciones en tu navegador.");
+        return;
+      }
+
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      if (!vapidKey) {
+        setPushError("Falta configurar VITE_FIREBASE_VAPID_KEY en tu .env");
+        return;
+      }
+
+      const swRegistration = await navigator.serviceWorker.ready;
+      const token = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: swRegistration,
+      });
+
+      if (!token) {
+        setPushError("No se pudo obtener el token de notificaciones.");
+        return;
+      }
+
+      await setDoc(doc(db, "conductores", user.uid, "tokens", token), {
+        token,
+        createdAt: new Date().toISOString(),
+        userAgent: navigator.userAgent || "desconocido",
+      });
+
+      setPushToken(token);
+      setPushStatus("granted");
+      setMensaje("🔔 Notificaciones activadas para este dispositivo.");
+    } catch (err) {
+      console.error("Error activando notificaciones:", err);
+      const message = err?.message || "No se pudieron activar las notificaciones.";
+      setPushError(message);
+    } finally {
+      setActivandoPush(false);
+    }
   };
 
   const guardarPerfil = async (e) => {
@@ -831,6 +963,72 @@ function PanelConductor() {
                       >
                         {stats.cancelados}
                       </h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="row g-3 mb-3">
+                <div className="col-12">
+                  <div
+                    className="card"
+                    style={{
+                      backgroundColor: "#0b1120",
+                      borderRadius: 14,
+                      border: "1px solid rgba(55,65,81,0.8)",
+                      color: "#f9fafb",
+                    }}
+                  >
+                    <div className="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                      <div>
+                        <h5 className="mb-1">Notificaciones push</h5>
+                        <p className="mb-1" style={{ opacity: 0.85 }}>
+                          Activa los avisos para enterarte cuando un pasajero agenda
+                          un viaje contigo.
+                        </p>
+                        <div style={{ fontSize: 14, opacity: 0.8 }}>
+                          Estado: {pushStatus === "granted" && "activadas"}
+                          {pushStatus === "idle" && "pendiente"}
+                          {pushStatus === "denied" && "bloqueadas por el navegador"}
+                          {pushStatus === "unsupported" && "no soportadas"}
+                        </div>
+                        {pushToken && (
+                          <div
+                            className="mt-2"
+                            style={{
+                              fontSize: 12,
+                              wordBreak: "break-all",
+                              opacity: 0.7,
+                            }}
+                          >
+                            Token guardado
+                          </div>
+                        )}
+                        {pushError && (
+                          <div className="mt-2 text-danger" style={{ fontSize: 14 }}>
+                            {pushError}
+                          </div>
+                        )}
+                      </div>
+                      <div className="d-flex gap-2 align-items-center">
+                        <button
+                          className="btn btn-success"
+                          disabled={
+                            activandoPush ||
+                            pushStatus === "granted" ||
+                            pushStatus === "unsupported"
+                          }
+                          onClick={activarNotificaciones}
+                        >
+                          {activandoPush ? "Guardando..." : "Activar notificaciones"}
+                        </button>
+                        {pushStatus === "denied" && (
+                          <small style={{ color: "#fbbf24", maxWidth: 200 }}>
+                            Habilita las notificaciones en tu navegador y vuelve a
+                            intentarlo.
+                          </small>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
