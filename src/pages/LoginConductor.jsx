@@ -1,5 +1,5 @@
 // src/pages/LoginConductor.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import {
   signInWithEmailAndPassword,
@@ -37,6 +37,21 @@ export default function LoginConductor() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // 🔹 Detectar si es móvil para adaptar el layout
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === "undefined") return;
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Datos del conductor (solo se usan al registrarse)
   const [conductorData, setConductorData] = useState({
     nombre: "",
@@ -57,9 +72,7 @@ export default function LoginConductor() {
     setConductorData((prev) => ({
       ...prev,
       [name]:
-        name === "pasajeros" || name === "precio"
-          ? Number(value)
-          : value,
+        name === "pasajeros" || name === "precio" ? Number(value) : value,
     }));
   };
 
@@ -81,11 +94,7 @@ export default function LoginConductor() {
     try {
       if (isRegister) {
         // Crear usuario en Auth
-        const res = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
+        const res = await createUserWithEmailAndPassword(auth, email, password);
 
         const uid = res.user.uid;
 
@@ -148,7 +157,7 @@ export default function LoginConductor() {
         justifyContent: "center",
         background:
           "radial-gradient(circle at top, #22c55e20 0%, #020617 55%, #000 100%)",
-        padding: 16,
+        padding: isMobile ? 12 : 16,
       }}
     >
       {/* Card principal */}
@@ -161,19 +170,27 @@ export default function LoginConductor() {
           border: "1px solid rgba(148,163,184,0.5)",
           color: "#f9fafb",
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "minmax(0, 1.1fr) minmax(0, 1fr)", // 👉 en móvil se apila, en desktop queda igual
           overflow: "hidden",
         }}
       >
         {/* Columna izquierda: formulario */}
-        <div style={{ padding: "22px 22px 18px 22px" }}>
+        <div
+          style={{
+            padding: isMobile ? "18px 16px 14px 16px" : "22px 22px 18px 22px",
+          }}
+        >
           {/* Header */}
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: isMobile ? "flex-start" : "center",
+              gap: isMobile ? 8 : 0,
               marginBottom: 16,
+              flexDirection: isMobile ? "column" : "row",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -193,12 +210,17 @@ export default function LoginConductor() {
                 <FaCar />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.2rem" }}>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: isMobile ? "1.1rem" : "1.2rem",
+                  }}
+                >
                   {isRegister
                     ? "Registro de Conductor"
                     : "Inicio de sesión Conductor"}
                 </h3>
-                <small style={{ opacity: 0.75 }}>
+                <small style={{ opacity: 0.75, fontSize: isMobile ? 12 : 13 }}>
                   Acceso exclusivo para conductores de CarPool.
                 </small>
               </div>
@@ -207,6 +229,10 @@ export default function LoginConductor() {
             <button
               onClick={() => navigate("/")}
               className="btn btn-sm btn-outline-light"
+              style={{
+                alignSelf: isMobile ? "flex-end" : "auto",
+                paddingInline: isMobile ? 10 : undefined,
+              }}
             >
               <FaArrowLeft className="me-1" />
               Pasajeros
@@ -402,8 +428,7 @@ export default function LoginConductor() {
                               gap: 4,
                               padding: "4px 10px",
                               borderRadius: 999,
-                              border:
-                                "1px solid rgba(148,163,184,0.7)",
+                              border: "1px solid rgba(148,163,184,0.7)",
                               cursor: "pointer",
                               backgroundColor: conductorData.diasClase.includes(
                                 dia
@@ -414,9 +439,7 @@ export default function LoginConductor() {
                           >
                             <input
                               type="checkbox"
-                              checked={conductorData.diasClase.includes(
-                                dia
-                              )}
+                              checked={conductorData.diasClase.includes(dia)}
                               onChange={() => toggleDia(dia)}
                               style={{ accentColor: "#22c55e" }}
                             />
@@ -476,18 +499,36 @@ export default function LoginConductor() {
           style={{
             background:
               "radial-gradient(circle at top, #22c55e40 0%, #022c22 50%, #020617 100%)",
-            padding: 22,
-            borderLeft: "1px solid rgba(31,41,55,0.9)",
+            padding: isMobile ? 16 : 22,
+            borderLeft: isMobile
+              ? "none"
+              : "1px solid rgba(31,41,55,0.9)", // en móvil quitamos el borde lateral
+            borderTop: isMobile
+              ? "1px solid rgba(31,41,55,0.9)"
+              : "none", // en móvil parece una sección debajo
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
           }}
         >
           <div>
-            <h4 style={{ marginBottom: 10, display: "flex", gap: 8 }}>
+            <h4
+              style={{
+                marginBottom: 10,
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                fontSize: isMobile ? 16 : 18,
+              }}
+            >
               <FaCar /> <span>Conduce con CarPool</span>
             </h4>
-            <p style={{ fontSize: 14, opacity: 0.9 }}>
+            <p
+              style={{
+                fontSize: isMobile ? 13 : 14,
+                opacity: 0.9,
+              }}
+            >
               Registra tu ruta, horario y vehículo para que los estudiantes
               puedan agendar viajes contigo de forma rápida y segura.
             </p>
@@ -502,10 +543,16 @@ export default function LoginConductor() {
                 }}
               >
                 <div className="card-body py-2">
-                  <p style={{ marginBottom: 4, fontSize: 14, color: "#fafafaff" }}>
+                  <p
+                    style={{
+                      marginBottom: 4,
+                      fontSize: isMobile ? 13 : 14,
+                      color: "#fafafaff",
+                    }}
+                  >
                     <FaMapMarkerAlt className="me-2" />
-                    Define tu <strong>colonia de salida</strong> y el
-                    vehículo que utilizas.
+                    Define tu <strong>colonia de salida</strong> y el vehículo
+                    que utilizas.
                   </p>
                 </div>
               </div>
@@ -519,7 +566,13 @@ export default function LoginConductor() {
                 }}
               >
                 <div className="card-body py-2">
-                  <p style={{ marginBottom: 4, fontSize: 14, color: "#fafafaff" }}>
+                  <p
+                    style={{
+                      marginBottom: 4,
+                      fontSize: isMobile ? 13 : 14,
+                      color: "#fafafaff",
+                    }}
+                  >
                     <FaClock className="me-2" />
                     Establece tu <strong>horario de salida</strong> y el{" "}
                     <strong>costo por viaje</strong>.
@@ -536,10 +589,15 @@ export default function LoginConductor() {
                 }}
               >
                 <div className="card-body py-2">
-                  <p style={{ marginBottom: 4, fontSize: 14, color: "#fafafaff" }}>
+                  <p
+                    style={{
+                      marginBottom: 4,
+                      fontSize: isMobile ? 13 : 14,
+                      color: "#fafafaff",
+                    }}
+                  >
                     <FaUsers className="me-2" />
-                    Define cuántos <strong>pasajeros</strong> puedes
-                    llevar.
+                    Define cuántos <strong>pasajeros</strong> puedes llevar.
                   </p>
                 </div>
               </div>
@@ -553,10 +611,16 @@ export default function LoginConductor() {
                 }}
               >
                 <div className="card-body py-2">
-                  <p style={{ marginBottom: 4, fontSize: 14, color: "#fafafaff" }}>
+                  <p
+                    style={{
+                      marginBottom: 4,
+                      fontSize: isMobile ? 13 : 14,
+                      color: "#fafafaff",
+                    }}
+                  >
                     <FaSchool className="me-2" />
-                    Selecciona los <strong>días que vas a clase</strong>{" "}
-                    para que solo esos días puedan agendar contigo.
+                    Selecciona los <strong>días que vas a clase</strong> para
+                    que solo esos días puedan agendar contigo.
                   </p>
                 </div>
               </div>

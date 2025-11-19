@@ -59,6 +59,21 @@ function PanelConductor() {
   const [mensaje, setMensaje] = useState("");
   const [marcandoId, setMarcandoId] = useState(null);
 
+  // 🔹 Detectar si es móvil para cambiar el layout
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === "undefined") return;
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Para editar datos del conductor
   const [form, setForm] = useState({
     nombre: "",
@@ -138,6 +153,7 @@ function PanelConductor() {
     loadConductor();
   }, [user]);
 
+  // 2.5) Cargar info extra de pasajeros
   useEffect(() => {
     const loadPasajeros = async () => {
       const faltantes = viajes
@@ -352,8 +368,10 @@ function PanelConductor() {
         style={{
           padding: "12px 20px",
           display: "flex",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "flex-start" : "center",
           justifyContent: "space-between",
+          gap: isMobile ? 12 : 0,
           borderBottom: "1px solid rgba(148,163,184,0.3)",
           backdropFilter: "blur(10px)",
           backgroundColor: "rgba(15,23,42,0.8)",
@@ -383,7 +401,14 @@ function PanelConductor() {
             <small style={{ opacity: 0.8 }}>{user.email}</small>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            width: isMobile ? "100%" : "auto",
+            justifyContent: isMobile ? "flex-end" : "flex-start",
+          }}
+        >
           <button
             className="btn btn-sm btn-outline-light"
             onClick={() => setActiveTab("inicio")}
@@ -416,147 +441,296 @@ function PanelConductor() {
       <main
         style={{
           flex: 1,
-          padding: "24px",
+          padding: isMobile ? "16px" : "24px",
           maxWidth: 1200,
           width: "100%",
           margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "300px 1fr",
-          gap: 24,
+          display: isMobile ? "flex" : "grid",
+          flexDirection: isMobile ? "column" : undefined,
+          gridTemplateColumns: isMobile ? undefined : "300px 1fr",
+          gap: isMobile ? 16 : 24,
         }}
       >
-        {/* Sidebar de tabs */}
-        <aside
-          style={{
-            backgroundColor: "rgba(15,23,42,0.95)",
-            borderRadius: 16,
-            padding: 20,
-            border: "1px solid rgba(148,163,184,0.4)",
-            height: "fit-content",
-          }}
-        >
-          <h5
+        {/* Sidebar de tabs: solo en desktop/tablet */}
+        {!isMobile && (
+          <aside
             style={{
-              marginBottom: 16,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 20,
+              backgroundColor: "rgba(15,23,42,0.95)",
+              borderRadius: 16,
+              padding: 20,
+              border: "1px solid rgba(148,163,184,0.4)",
+              height: "fit-content",
             }}
           >
-            <FaUser /> <span>Menú</span>
-          </h5>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              fontSize: 15,
-            }}
-          >
-            <button
-              className="btn btn-sm text-start"
+            <h5
               style={{
-                backgroundColor:
-                  activeTab === "inicio" ? "#22c55e" : "transparent",
-                borderColor: "#22c55e",
-                color: activeTab === "inicio" ? "#0b1120" : "#e5e7eb",
+                marginBottom: 16,
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                padding: "10px 12px",
-                fontSize: 15,
-                borderRadius: 12,
+                fontSize: 20,
               }}
-              onClick={() => setActiveTab("inicio")}
             >
-              <FaClipboardCheck /> Resumen
-            </button>
-            <button
-              className="btn btn-sm text-start"
-              style={{
-                backgroundColor:
-                  activeTab === "viajes" ? "#22c55e" : "transparent",
-                borderColor: "#22c55e",
-                color: activeTab === "viajes" ? "#0b1120" : "#e5e7eb",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 12px",
-                fontSize: 15,
-                borderRadius: 12,
-              }}
-              onClick={() => setActiveTab("viajes")}
-            >
-              <FaListAlt /> Mis viajes
-            </button>
-            <button
-              className="btn btn-sm text-start"
-              style={{
-                backgroundColor:
-                  activeTab === "perfil" ? "#22c55e" : "transparent",
-                borderColor: "#22c55e",
-                color: activeTab === "perfil" ? "#0b1120" : "#e5e7eb",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 12px",
-                fontSize: 15,
-                borderRadius: 12,
-              }}
-              onClick={() => setActiveTab("perfil")}
-            >
-              <FaTools /> Actualizar datos
-            </button>
-          </div>
-
-          {/* Mini resumen lateral */}
-          {conductor && (
+              <FaUser /> <span>Menú</span>
+            </h5>
             <div
               style={{
-                marginTop: 20,
-                paddingTop: 14,
-                borderTop: "1px solid rgba(55,65,81,0.8)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
                 fontSize: 15,
               }}
             >
-              <p style={{ marginBottom: 4 }}>
-                <FaMapMarkerAlt className="me-1" /> {conductor.colonia}
-              </p>
-              <p style={{ marginBottom: 4 }}>
-                <FaCar className="me-1" /> {conductor.vehiculo}
-              </p>
-              <p style={{ marginBottom: 4 }}>
-                <FaClock className="me-1" /> {conductor.horario}
-              </p>
-              <p style={{ marginBottom: 4 }}>
-                <FaUsers className="me-1" /> {conductor.pasajeros} pasajeros
-              </p>
-              <p style={{ marginBottom: 4 }}>
-                <FaMoneyBillWave className="me-1" /> L {conductor.precio}
-              </p>
-              <p style={{ marginBottom: 0 }}>
-                <FaSchool className="me-1" />{" "}
-                {(conductor.campus || []).length > 0
-                  ? conductor.campus.join(", ")
-                  : "Campus no definido"}
-              </p>
+              <button
+                className="btn btn-sm text-start"
+                style={{
+                  backgroundColor:
+                    activeTab === "inicio" ? "#22c55e" : "transparent",
+                  borderColor: "#22c55e",
+                  color: activeTab === "inicio" ? "#0b1120" : "#e5e7eb",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 12px",
+                  fontSize: 15,
+                  borderRadius: 12,
+                }}
+                onClick={() => setActiveTab("inicio")}
+              >
+                <FaClipboardCheck /> Resumen
+              </button>
+              <button
+                className="btn btn-sm text-start"
+                style={{
+                  backgroundColor:
+                    activeTab === "viajes" ? "#22c55e" : "transparent",
+                  borderColor: "#22c55e",
+                  color: activeTab === "viajes" ? "#0b1120" : "#e5e7eb",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 12px",
+                  fontSize: 15,
+                  borderRadius: 12,
+                }}
+                onClick={() => setActiveTab("viajes")}
+              >
+                <FaListAlt /> Mis viajes
+              </button>
+              <button
+                className="btn btn-sm text-start"
+                style={{
+                  backgroundColor:
+                    activeTab === "perfil" ? "#22c55e" : "transparent",
+                  borderColor: "#22c55e",
+                  color: activeTab === "perfil" ? "#0b1120" : "#e5e7eb",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 12px",
+                  fontSize: 15,
+                  borderRadius: 12,
+                }}
+                onClick={() => setActiveTab("perfil")}
+              >
+                <FaTools /> Actualizar datos
+              </button>
             </div>
-          )}
-        </aside>
 
-        {/* Contenido principal */}
+            {/* Mini resumen lateral */}
+            {conductor && (
+              <div
+                style={{
+                  marginTop: 20,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(55,65,81,0.8)",
+                  fontSize: 15,
+                }}
+              >
+                <p style={{ marginBottom: 4 }}>
+                  <FaMapMarkerAlt className="me-1" /> {conductor.colonia}
+                </p>
+                <p style={{ marginBottom: 4 }}>
+                  <FaCar className="me-1" /> {conductor.vehiculo}
+                </p>
+                <p style={{ marginBottom: 4 }}>
+                  <FaClock className="me-1" /> {conductor.horario}
+                </p>
+                <p style={{ marginBottom: 4 }}>
+                  <FaUsers className="me-1" /> {conductor.pasajeros} pasajeros
+                </p>
+                <p style={{ marginBottom: 4 }}>
+                  <FaMoneyBillWave className="me-1" /> L {conductor.precio}
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  <FaSchool className="me-1" />{" "}
+                  {(conductor.campus || []).length > 0
+                    ? conductor.campus.join(", ")
+                    : "Campus no definido"}
+                </p>
+              </div>
+            )}
+          </aside>
+        )}
+
         <section
           style={{
             backgroundColor: "rgba(15,23,42,0.9)",
             borderRadius: 16,
-            padding: 20,
+            padding: isMobile ? 16 : 20,
             border: "1px solid rgba(148,163,184,0.4)",
           }}
         >
+          {/* Menú compacto para móvil */}
+          {isMobile && (
+            <>
+              <nav
+                style={{
+                  marginBottom: 12,
+                  display: "flex",
+                  gap: 8,
+                  overflowX: "auto",
+                  paddingBottom: 4,
+                }}
+              >
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    whiteSpace: "nowrap",
+                    backgroundColor:
+                      activeTab === "inicio" ? "#22c55e" : "transparent",
+                    borderColor: "#22c55e",
+                    color: activeTab === "inicio" ? "#0b1120" : "#e5e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 14,
+                  }}
+                  onClick={() => setActiveTab("inicio")}
+                >
+                  <FaClipboardCheck /> Resumen
+                </button>
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    whiteSpace: "nowrap",
+                    backgroundColor:
+                      activeTab === "viajes" ? "#22c55e" : "transparent",
+                    borderColor: "#22c55e",
+                    color: activeTab === "viajes" ? "#0b1120" : "#e5e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 14,
+                  }}
+                  onClick={() => setActiveTab("viajes")}
+                >
+                  <FaListAlt /> Mis viajes
+                </button>
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    whiteSpace: "nowrap",
+                    backgroundColor:
+                      activeTab === "perfil" ? "#22c55e" : "transparent",
+                    borderColor: "#22c55e",
+                    color: activeTab === "perfil" ? "#0b1120" : "#e5e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    fontSize: 14,
+                  }}
+                  onClick={() => setActiveTab("perfil")}
+                >
+                  <FaTools /> Perfil
+                </button>
+              </nav>
+
+              {/* Mini resumen arriba en móvil */}
+              {conductor && activeTab === "inicio" && (
+                <div
+                  className="card mb-3"
+                  style={{
+                    backgroundColor: "#020617",
+                    borderRadius: 14,
+                    border: "1px solid rgba(55,65,81,0.8)",
+                    color: "#f9fafb",
+                  }}
+                >
+                  <div className="card-body">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: "999px",
+                          background:
+                            "linear-gradient(135deg,#22c55e,#16a34a)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 24,
+                        }}
+                      >
+                        {conductor.nombre
+                          ? conductor.nombre.charAt(0).toUpperCase()
+                          : "C"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontWeight: "bold",
+                            fontSize: 16,
+                            marginBottom: 2,
+                          }}
+                        >
+                          {conductor.nombre}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            opacity: 0.8,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {conductor.vehiculo}
+                        </div>
+                        <div style={{ fontSize: 13 }}>
+                          <FaMapMarkerAlt className="me-1" />
+                          {conductor.colonia} ·{" "}
+                          <FaClock className="me-1" />
+                          {conductor.horario}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {activeTab === "inicio" && (
             <>
-              <h3 style={{ marginBottom: 16 }}>Resumen</h3>
+              <h3
+                style={{
+                  marginBottom: 16,
+                  fontSize: isMobile ? 18 : 20,
+                }}
+              >
+                Resumen
+              </h3>
 
               {/* Stats */}
               <div className="row g-3 mb-3">
@@ -580,9 +754,16 @@ function PanelConductor() {
                       >
                         <div>
                           <small>Total viajes</small>
-                          <h4 style={{ margin: 0 }}>{stats.total}</h4>
+                          <h4
+                            style={{
+                              margin: 0,
+                              fontSize: isMobile ? 18 : 20,
+                            }}
+                          >
+                            {stats.total}
+                          </h4>
                         </div>
-                        <FaCar size={26} />
+                        <FaCar size={isMobile ? 22 : 26} />
                       </div>
                     </div>
                   </div>
@@ -598,7 +779,14 @@ function PanelConductor() {
                   >
                     <div className="card-body py-2">
                       <small>Programados</small>
-                      <h4 style={{ margin: 0 }}>{stats.programados}</h4>
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: isMobile ? 18 : 20,
+                        }}
+                      >
+                        {stats.programados}
+                      </h4>
                     </div>
                   </div>
                 </div>
@@ -613,7 +801,14 @@ function PanelConductor() {
                   >
                     <div className="card-body py-2">
                       <small>Completados</small>
-                      <h4 style={{ margin: 0 }}>{stats.completados}</h4>
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: isMobile ? 18 : 20,
+                        }}
+                      >
+                        {stats.completados}
+                      </h4>
                     </div>
                   </div>
                 </div>
@@ -628,13 +823,20 @@ function PanelConductor() {
                   >
                     <div className="card-body py-2">
                       <small>Cancelados</small>
-                      <h4 style={{ margin: 0 }}>{stats.cancelados}</h4>
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: isMobile ? 18 : 20,
+                        }}
+                      >
+                        {stats.cancelados}
+                      </h4>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Info conductor */}
+              {/* Info conductor (vista completa, se mantiene igual en desktop) */}
               {conductor ? (
                 <div
                   className="card mt-2"
@@ -668,14 +870,18 @@ function PanelConductor() {
                             : "C"}
                         </div>
                         <h5
-                          style={{ margin: 0, fontSize: 24, color: "#f9fafb" }}
+                          style={{
+                            margin: 0,
+                            fontSize: isMobile ? 20 : 24,
+                            color: "#f9fafb",
+                          }}
                         >
                           {conductor.nombre}
                         </h5>
                         <small
                           style={{
                             opacity: 0.7,
-                            fontSize: 16,
+                            fontSize: isMobile ? 14 : 16,
                             color: "#e5e7eb",
                           }}
                         >
@@ -685,40 +891,74 @@ function PanelConductor() {
                       <div className="col-md-8">
                         <div className="row">
                           <div className="col-sm-6">
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaMapMarkerAlt className="me-1" />
                               <strong>Colonia:</strong> {conductor.colonia}
                             </p>
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaClock className="me-1" />
                               <strong>Horario salida:</strong>{" "}
                               {conductor.horario}
                             </p>
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaUsers className="me-1" />
                               <strong>Pasajeros:</strong>{" "}
                               {conductor.pasajeros}
                             </p>
                           </div>
                           <div className="col-sm-6">
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaMoneyBillWave className="me-1" />
-                              <strong>Precio:</strong> L{" "}
-                              {conductor.precio}
+                              <strong>Precio:</strong> L {conductor.precio}
                             </p>
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaPhone className="me-1" />
                               <strong>Telefono:</strong>{" "}
                               {conductor.telefono}
                             </p>
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaSchool className="me-1" />
                               <strong>Días clase:</strong>{" "}
                               {(conductor.diasClase || []).length > 0
                                 ? conductor.diasClase.join(", ")
                                 : "Sin especificar"}
                             </p>
-                            <p style={{ fontSize: 18, color: "#f9fafb" }}>
+                            <p
+                              style={{
+                                fontSize: isMobile ? 15 : 18,
+                                color: "#f9fafb",
+                              }}
+                            >
                               <FaSchool className="me-1" />
                               <strong>Campus:</strong>{" "}
                               {(conductor.campus || []).length > 0
@@ -741,7 +981,13 @@ function PanelConductor() {
 
           {activeTab === "viajes" && (
             <>
-              <h3 style={{ marginBottom: 16, color: "#f9fafb" }}>
+              <h3
+                style={{
+                  marginBottom: 16,
+                  color: "#f9fafb",
+                  fontSize: isMobile ? 18 : 20,
+                }}
+              >
                 Mis viajes
               </h3>
               {loadingViajes ? (
@@ -754,12 +1000,13 @@ function PanelConductor() {
                 <div
                   style={{
                     marginTop: 8,
-                    maxHeight: "60vh",
+                    maxHeight: isMobile ? "65vh" : "60vh",
                     overflowY: "auto",
                   }}
                 >
                   {viajes.map((v) => {
-                    const pasajeroExtra = pasajerosInfo[v.pasajeroEmail] || null;
+                    const pasajeroExtra =
+                      pasajerosInfo[v.pasajeroEmail] || null;
                     const telefonoPasajero = pasajeroExtra?.telefono
                       ? pasajeroExtra.telefono.toString().replace(/\D/g, "")
                       : "";
@@ -767,116 +1014,129 @@ function PanelConductor() {
                       <div
                         key={v.id}
                         className="card mb-2"
-                      style={{
-                        backgroundColor: "#020617",
-                        borderRadius: 14,
-                        border: "1px solid rgba(55,65,81,0.8)",
-                        fontSize: 20,
-                        color: "#f9fafb",
-                      }}
-                    >
-                      <div className="card-body">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <div>
+                        style={{
+                          backgroundColor: "#020617",
+                          borderRadius: 14,
+                          border: "1px solid rgba(55,65,81,0.8)",
+                          fontSize: isMobile ? 14 : 20,
+                          color: "#f9fafb",
+                        }}
+                      >
+                        <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                              <span
+                                className="badge me-2"
+                                style={{
+                                  backgroundColor: "#1f2937",
+                                  fontSize: 14,
+                                  color: "#f9fafb",
+                                }}
+                              >
+                                <FaCalendarAlt className="me-1" />
+                                {v.fecha}
+                              </span>
+                              <span
+                                className="badge"
+                                style={{
+                                  backgroundColor: "#1f2937",
+                                  fontSize: 14,
+                                  color: "#f9fafb",
+                                }}
+                              >
+                                <FaClock className="me-1" />
+                                {v.horario}
+                              </span>
+                            </div>
                             <span
-                              className="badge me-2"
-                              style={{
-                                backgroundColor: "#1f2937",
-                                fontSize: 14,
-                                color: "#f9fafb",
-                              }}
+                              className={
+                                v.estado === "programado"
+                                  ? "badge bg-success"
+                                  : v.estado === "cancelado"
+                                  ? "badge bg-danger"
+                                  : "badge bg-secondary"
+                              }
                             >
-                              <FaCalendarAlt className="me-1" />
-                              {v.fecha}
-                            </span>
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: "#1f2937",
-                                fontSize: 14,
-                                color: "#f9fafb",
-                              }}
-                            >
-                              <FaClock className="me-1" />
-                              {v.horario}
+                              {v.estado}
                             </span>
                           </div>
-                          <span
-                            className={
-                              v.estado === "programado"
-                                ? "badge bg-success"
-                                : v.estado === "cancelado"
-                                ? "badge bg-danger"
-                                : "badge bg-secondary"
-                            }
-                          >
-                            {v.estado}
-                          </span>
-                        </div>
-                        <p style={{ marginBottom: 4 }}>
-                          <FaUser className="me-1" />
-                          <strong>Pasajero:</strong>{" "}
-                          {pasajeroExtra?.nombre ||
-                            v.pasajeroNombre ||
-                            "Sin nombre"}{" "}
-                          ({v.pasajeroEmail})
-                        </p>
-                        {pasajeroExtra?.direccion && (
                           <p style={{ marginBottom: 4 }}>
-                            <FaMapMarkerAlt className="me-1" />
-                            <strong>Direccion:</strong>{" "}
-                            {pasajeroExtra.direccion}
+                            <FaUser className="me-1" />
+                            <strong>Pasajero:</strong>{" "}
+                            {pasajeroExtra?.nombre ||
+                              v.pasajeroNombre ||
+                              "Sin nombre"}{" "}
+                            ({v.pasajeroEmail})
                           </p>
-                        )}
-                        {pasajeroExtra?.telefono && (
-                          <p style={{ marginBottom: 4 }}>
-                            <FaPhone className="me-1" />
-                            <strong>Telefono:</strong>{" "}
-                            {pasajeroExtra.telefono}
-                          </p>
-                        )}
-                        {v.conductorColonia && (
-                          <p style={{ marginBottom: 4 }}>
-                            <FaMapMarkerAlt className="me-1" />
-                            <strong>Colonia:</strong> {v.conductorColonia}
-                          </p>
-                        )}
-                        {v.precio && (
-                          <p style={{ marginBottom: 4 }}>
-                            <FaMoneyBillWave className="me-1" />
-                            <strong>Precio:</strong> L {v.precio}
-                          </p>
-                        )}
+                          {pasajeroExtra?.direccion && (
+                            <p style={{ marginBottom: 4 }}>
+                              <FaMapMarkerAlt className="me-1" />
+                              <strong>Direccion:</strong>{" "}
+                              {pasajeroExtra.direccion}
+                            </p>
+                          )}
+                          {pasajeroExtra?.telefono && (
+                            <p style={{ marginBottom: 4 }}>
+                              <FaPhone className="me-1" />
+                              <strong>Telefono:</strong>{" "}
+                              {pasajeroExtra.telefono}
+                            </p>
+                          )}
+                          {v.conductorColonia && (
+                            <p style={{ marginBottom: 4 }}>
+                              <FaMapMarkerAlt className="me-1" />
+                              <strong>Colonia:</strong>{" "}
+                              {v.conductorColonia}
+                            </p>
+                          )}
+                          {v.precio && (
+                            <p style={{ marginBottom: 4 }}>
+                              <FaMoneyBillWave className="me-1" />
+                              <strong>Precio:</strong> L {v.precio}
+                            </p>
+                          )}
 
-                        {v.estado === "programado" && (
-                          <button
-                            className="btn btn-sm btn-outline-success mt-2"
-                            onClick={() => marcarCompletado(v.id)}
-                            disabled={marcandoId === v.id}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 8,
+                              marginTop: 8,
+                            }}
                           >
-                            <FaCheckCircle className="me-1" />
-                            {marcandoId === v.id
-                              ? "Marcando..."
-                              : "Marcar como completado"}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-success mt-2 ms-2"
-                          disabled={v.estado !== "programado" || !telefonoPasajero}
-                          onClick={() => {
-                            if (!telefonoPasajero) return;
-                            window.open(
-                              `https://wa.me/${telefonoPasajero}`,
-                              "_blank"
-                            );
-                          }}
-                        >
-                          <FaWhatsapp className="me-1" />
-                          Contactar por WhatsApp
-                        </button>
+                            {v.estado === "programado" && (
+                              <button
+                                className="btn btn-sm btn-outline-success"
+                                onClick={() => marcarCompletado(v.id)}
+                                disabled={marcandoId === v.id}
+                              >
+                                <FaCheckCircle className="me-1" />
+                                {marcandoId === v.id
+                                  ? "Marcando..."
+                                  : "Marcar como completado"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-success"
+                              disabled={
+                                v.estado !== "programado" ||
+                                !telefonoPasajero
+                              }
+                              onClick={() => {
+                                if (!telefonoPasajero) return;
+                                window.open(
+                                  `https://wa.me/${telefonoPasajero}`,
+                                  "_blank"
+                                );
+                              }}
+                            >
+                              <FaWhatsapp className="me-1" />
+                              WhatsApp
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
@@ -886,12 +1146,20 @@ function PanelConductor() {
 
           {activeTab === "perfil" && (
             <>
-              <h3 style={{ marginBottom: 16 }}>
+              <h3
+                style={{
+                  marginBottom: 16,
+                  fontSize: isMobile ? 18 : 20,
+                }}
+              >
                 Actualizar datos del conductor
               </h3>
               <form
                 onSubmit={guardarPerfil}
-                style={{ maxWidth: 520, marginTop: 8 }}
+                style={{
+                  maxWidth: 520,
+                  marginTop: 8,
+                }}
               >
                 <div className="mb-2">
                   <label className="form-label">Nombre completo</label>
@@ -960,126 +1228,123 @@ function PanelConductor() {
                     name="horario"
                     className="form-control"
                     value={form.horario}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="mb-2">
-                <label className="form-label">Precio por viaje (L)</label>
-                <input
-                  type="number"
-                  name="precio"
-                  className="form-control"
-                  value={form.precio}
-                  onChange={handleChange}
-                  min={0}
-                  required
-                />
-              </div>
-
-              <div className="mb-2">
-                <label className="form-label">Pasajeros disponibles</label>
-                <input
-                  type="number"
-                  name="pasajeros"
-                  className="form-control"
-                  value={form.pasajeros}
-                  onChange={handleChange}
-                  min={1}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Días que va a clase</label>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 10,
-                    fontSize: 14,
-                  }}
-                >
-                  {DIAS_SEMANA.map((dia) => (
-                    <label
-                      key={dia}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        borderRadius: 999,
-                        border: "1px solid rgba(148,163,184,0.6)",
-                        cursor: "pointer",
-                        backgroundColor: form.diasClase.includes(dia)
-                          ? "rgba(34,197,94,0.15)"
-                          : "transparent",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.diasClase.includes(dia)}
-                        onChange={() => toggleDia(dia)}
-                      />
-                      {dia}
-                    </label>
-                  ))}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
-              </div>
 
-              {/* Campus multiselect */}
-              <div className="mb-3">
-                <label className="form-label">Campus donde recoge</label>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 10,
-                    fontSize: 14,
-                  }}
-                >
-                  {CAMPUS_OPTIONS.map((camp) => (
-                    <label
-                      key={camp}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        borderRadius: 999,
-                        border: "1px solid rgba(148,163,184,0.6)",
-                        cursor: "pointer",
-                        backgroundColor: form.campus.includes(camp)
-                          ? "rgba(34,197,94,0.15)"
-                          : "transparent",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.campus.includes(camp)}
-                        onChange={() => toggleCampus(camp)}
-                      />
-                      {camp}
-                    </label>
-                  ))}
+                <div className="mb-2">
+                  <label className="form-label">Precio por viaje (L)</label>
+                  <input
+                    type="number"
+                    name="precio"
+                    className="form-control"
+                    value={form.precio}
+                    onChange={handleChange}
+                    min={0}
+                    required
+                  />
                 </div>
-              </div>
 
-              <button type="submit" className="btn btn-success">
-                <FaTools className="me-1" />
-                Guardar cambios
-              </button>
-            </form>
-          </>
-        )}
-      </section>
-    </main>
-  </div>
+                <div className="mb-2">
+                  <label className="form-label">Pasajeros disponibles</label>
+                  <input
+                    type="number"
+                    name="pasajeros"
+                    className="form-control"
+                    value={form.pasajeros}
+                    onChange={handleChange}
+                    min={1}
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Días que va a clase</label>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 10,
+                      fontSize: 14,
+                    }}
+                  >
+                    {DIAS_SEMANA.map((dia) => (
+                      <label
+                        key={dia}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          border: "1px solid rgba(148,163,184,0.6)",
+                          cursor: "pointer",
+                          backgroundColor: form.diasClase.includes(dia)
+                            ? "rgba(34,197,94,0.15)"
+                            : "transparent",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.diasClase.includes(dia)}
+                          onChange={() => toggleDia(dia)}
+                        />
+                        {dia}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Campus multiselect */}
+                <div className="mb-3">
+                  <label className="form-label">Campus donde recoge</label>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 10,
+                      fontSize: 14,
+                    }}
+                  >
+                    {CAMPUS_OPTIONS.map((camp) => (
+                      <label
+                        key={camp}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          border: "1px solid rgba(148,163,184,0.6)",
+                          cursor: "pointer",
+                          backgroundColor: form.campus.includes(camp)
+                            ? "rgba(34,197,94,0.15)"
+                            : "transparent",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.campus.includes(camp)}
+                          onChange={() => toggleCampus(camp)}
+                        />
+                        {camp}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn-success">
+                  <FaTools className="me-1" />
+                  Guardar cambios
+                </button>
+              </form>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
 
 export default PanelConductor;
-
-
-
