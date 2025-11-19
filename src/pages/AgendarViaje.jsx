@@ -156,15 +156,88 @@ function AgendarViaje() {
     return conductores.find((c) => c.id === form.conductorId) || null;
   }, [conductores, form.conductorId]);
 
+  const diasPermitidos = useMemo(() => {
+    if (!conductorSeleccionado?.diasClase) return [];
+
+    const mapaDias = {
+      domingo: 0,
+      lunes: 1,
+      martes: 2,
+      miércoles: 3,
+      miercoles: 3,
+      jueves: 4,
+      viernes: 5,
+      sábado: 6,
+      sabado: 6,
+    };
+
+    return conductorSeleccionado.diasClase
+      .map((dia) =>
+        mapaDias[
+          dia
+            .toString()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+        ]
+      )
+      .filter((dia) => dia !== undefined);
+  }, [conductorSeleccionado]);
+
   const telefonoWhatsApp = useMemo(() => {
     if (!conductorSeleccionado?.telefono) return "";
     return conductorSeleccionado.telefono.toString().replace(/\D/g, "");
   }, [conductorSeleccionado]);
 
+  const [fechaError, setFechaError] = useState("");
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "fecha") {
+      if (!value) {
+        setFechaError("");
+        setForm((f) => ({ ...f, fecha: "", horario: "" }));
+        return;
+      }
+
+      const fechaSeleccionada = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(fechaSeleccionada.getTime())) {
+        setFechaError("Fecha inválida.");
+        setForm((f) => ({ ...f, fecha: "", horario: "" }));
+        return;
+      }
+
+      const diaSemana = fechaSeleccionada.getDay();
+      if (diasPermitidos.length > 0 && !diasPermitidos.includes(diaSemana)) {
+        setFechaError("El conductor no viaja ese día. Elige un día permitido.");
+        setForm((f) => ({ ...f, fecha: "", horario: "" }));
+        return;
+      }
+
+      setFechaError("");
+      setForm((f) => ({ ...f, fecha: value }));
+      return;
+    }
+
     setForm((f) => ({ ...f, [name]: value }));
   };
+
+  useEffect(() => {
+    if (!form.fecha) {
+      setFechaError("");
+      return;
+    }
+
+    const fechaSeleccionada = new Date(`${form.fecha}T00:00:00`);
+    if (Number.isNaN(fechaSeleccionada.getTime())) return;
+
+    const diaSemana = fechaSeleccionada.getDay();
+    if (diasPermitidos.length > 0 && !diasPermitidos.includes(diaSemana)) {
+      setFechaError("El conductor no viaja ese día. Elige un día permitido.");
+      setForm((f) => ({ ...f, fecha: "", horario: "" }));
+    }
+  }, [diasPermitidos, form.fecha]);
 
   // Agendar viaje
   const agendarViaje = async (e) => {
@@ -368,6 +441,14 @@ function AgendarViaje() {
                         onChange={handleChange}
                         style={{ borderColor: "#1f2937", fontSize: 14 }}
                       />
+                      {conductorSeleccionado?.diasClase?.length ? (
+                        <small style={{ color: "rgba(226,232,240,0.7)" }}>
+                          Días permitidos: {conductorSeleccionado.diasClase.join(", ")}
+                        </small>
+                      ) : null}
+                      {fechaError ? (
+                        <div style={{ color: "#fda4af", fontSize: 12 }}>{fechaError}</div>
+                      ) : null}
                     </div>
                     <div className="col-12 col-sm-6">
                       <label className="form-label">Horario</label>
