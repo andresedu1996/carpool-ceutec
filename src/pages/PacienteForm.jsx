@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { FaUser, FaUniversity, FaPhone, FaMapMarkerAlt, FaCheckCircle } from "react-icons/fa";
 
 function PacienteForm() {
   const [user, setUser] = useState(null);
@@ -21,7 +17,6 @@ function PacienteForm() {
     direccion: "",
   });
 
-  // Escuchar usuario logueado y cargar sus datos si ya existen
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setCargandoUsuario(true);
@@ -48,7 +43,6 @@ function PacienteForm() {
             direccion: data.direccion || "",
           });
         } else {
-          // Si no hay doc, dejamos el form vacío (salvo que quieras poner defaults)
           setDatos({
             nombre: "",
             campus: "",
@@ -88,14 +82,13 @@ function PacienteForm() {
       await setDoc(
         ref,
         {
-          // Campos que ya existen (email/role) se mantienen porque usamos merge
           nombre: datos.nombre,
           campus: datos.campus,
           telefono: datos.telefono,
           direccion: datos.direccion,
           updatedAt: serverTimestamp(),
         },
-        { merge: true } // 👈 así no borras email, role, etc.
+        { merge: true }
       );
 
       setMensaje("✅ Datos personales guardados correctamente.");
@@ -108,81 +101,158 @@ function PacienteForm() {
   };
 
   if (cargandoUsuario) {
-    return <p>Cargando información del usuario...</p>;
+    return (
+      <div
+        style={{
+          minHeight: "40vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#f9fafb",
+        }}
+      >
+        Cargando información del usuario...
+      </div>
+    );
   }
 
   if (!user) {
-    return <p>Debes iniciar sesión para registrar tus datos personales.</p>;
+    return (
+      <div
+        style={{
+          minHeight: "40vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#f9fafb",
+        }}
+      >
+        Debes iniciar sesión para registrar tus datos personales.
+      </div>
+    );
   }
 
   return (
-    <form
-      onSubmit={guardarDatos}
-      style={{ textAlign: "left", maxWidth: 400, margin: "0 auto" }}
+    <div
+      style={{
+        background: "#0b1120",
+        color: "#f8fafc",
+        borderRadius: 16,
+        border: "1px solid rgba(148,163,184,0.4)",
+        padding: 24,
+        maxWidth: 500,
+        margin: "0 auto",
+      }}
     >
-      <h2 className="text-center mb-3">Datos Personales</h2>
-
-      {/* Email mostrado solo como referencia */}
-      <div className="mb-2">
-        <label className="form-label">Correo</label>
-        <input
-          type="email"
-          className="form-control"
-          value={user.email || ""}
-          disabled
-        />
+      <div className="d-flex align-items-center gap-3 mb-3">
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: "999px",
+            background: "linear-gradient(135deg, #22c55e, #16a34a)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#0b1120",
+          }}
+        >
+          <FaUser />
+        </div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: "1.4rem" }}>Datos personales</h2>
+          <small style={{ color: "rgba(226,232,240,0.7)" }}>
+            Completa tu información para poder agendar viajes.
+          </small>
+        </div>
       </div>
 
-      <input
-        type="text"
-        name="nombre"
-        placeholder="Nombre completo"
-        className="form-control mb-2"
-        value={datos.nombre}
-        onChange={handleChange}
-        required
-      />
-
-      <input
-        type="text"
-        name="campus"
-        placeholder="Campus"
-        className="form-control mb-2"
-        value={datos.campus}
-        onChange={handleChange}
-        required
-      />
-
-      <input
-        type="tel"
-        name="telefono"
-        placeholder="Número de teléfono"
-        className="form-control mb-2"
-        value={datos.telefono}
-        onChange={handleChange}
-        required
-      />
-
-      <textarea
-        name="direccion"
-        placeholder="Dirección"
-        className="form-control mb-3"
-        rows={3}
-        value={datos.direccion}
-        onChange={handleChange}
-        required
-      />
-
-      {mensaje && (
-        <div className="alert alert-info py-2">
-          {mensaje}
+      <form onSubmit={guardarDatos}>
+        <div className="mb-3">
+          <label className="form-label text-light">Correo</label>
+          <input
+            type="email"
+            className="form-control bg-dark text-light"
+            value={user.email || ""}
+            disabled
+          />
         </div>
-      )}
 
-      <button type="submit" className="btn btn-primary w-100" disabled={guardando}>
-        {guardando ? "Guardando..." : "Guardar Datos"}
-      </button>
-    </form>
+        <div className="mb-3">
+          <label className="form-label text-light">
+            <FaUser className="me-1" /> Nombre completo
+          </label>
+          <input
+            type="text"
+            name="nombre"
+            className="form-control bg-dark text-light"
+            value={datos.nombre}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label text-light">
+            <FaUniversity className="me-1" /> Campus
+          </label>
+          <input
+            type="text"
+            name="campus"
+            className="form-control bg-dark text-light"
+            value={datos.campus}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label text-light">
+            <FaPhone className="me-1" /> Teléfono
+          </label>
+          <input
+            type="tel"
+            name="telefono"
+            className="form-control bg-dark text-light"
+            value={datos.telefono}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label text-light">
+            <FaMapMarkerAlt className="me-1" /> Dirección
+          </label>
+          <textarea
+            name="direccion"
+            className="form-control bg-dark text-light"
+            rows={3}
+            value={datos.direccion}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        {mensaje && (
+          <div
+            className="alert alert-info py-2"
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <FaCheckCircle className="text-success" /> {mensaje}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          className="btn btn-success w-100"
+          disabled={guardando}
+          style={{ borderRadius: 12, fontWeight: 600 }}
+        >
+          {guardando ? "Guardando..." : "Guardar datos"}
+        </button>
+      </form>
+    </div>
   );
 }
 

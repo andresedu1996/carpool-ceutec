@@ -9,6 +9,7 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +29,7 @@ import {
   FaPhone,
   FaSchool,
   FaCheckCircle,
+  FaWhatsapp,
 } from "react-icons/fa";
 
 const DIAS_SEMANA = [
@@ -47,6 +49,7 @@ function PanelConductor() {
   const [user, setUser] = useState(null);
   const [conductor, setConductor] = useState(null);
   const [viajes, setViajes] = useState([]);
+  const [pasajerosInfo, setPasajerosInfo] = useState({});
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingConductor, setLoadingConductor] = useState(true);
@@ -135,6 +138,40 @@ function PanelConductor() {
     loadConductor();
   }, [user]);
 
+  useEffect(() => {
+    const loadPasajeros = async () => {
+      const faltantes = viajes
+        .map((v) => v.pasajeroEmail)
+        .filter((email) => email && !pasajerosInfo[email]);
+      if (faltantes.length === 0) return;
+
+      const nuevos = {};
+      await Promise.all(
+        faltantes.map(async (email) => {
+          try {
+            const q = query(
+              collection(db, "usuarios"),
+              where("email", "==", email)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              nuevos[email] = snap.docs[0].data();
+            } else {
+              nuevos[email] = null;
+            }
+          } catch (err) {
+            console.error("Error cargando datos del pasajero:", err);
+            nuevos[email] = null;
+          }
+        })
+      );
+
+      setPasajerosInfo((prev) => ({ ...prev, ...nuevos }));
+    };
+
+    loadPasajeros();
+  }, [viajes, pasajerosInfo]);
+
   // 3) Suscribirse a viajes del conductor cuando haya user
   useEffect(() => {
     if (!user) return;
@@ -150,9 +187,19 @@ function PanelConductor() {
     const unsub = onSnapshot(
       q,
       (snap) => {
+        const priority = { programado: 0, completado: 1, cancelado: 2 };
         let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        // ordenar en memoria por fecha descendente (asumiendo YYYY-MM-DD)
-        rows.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+        rows.sort((a, b) => {
+          const pa = priority[a.estado] ?? 99;
+          const pb = priority[b.estado] ?? 99;
+          if (pa !== pb) return pa - pb;
+          const fechaA = a.fecha || "";
+          const fechaB = b.fecha || "";
+          if (fechaA !== fechaB) return fechaB.localeCompare(fechaA);
+          const horaA = a.horario || "";
+          const horaB = b.horario || "";
+          return horaA.localeCompare(horaB);
+        });
         setViajes(rows);
         setLoadingViajes(false);
       },
@@ -661,7 +708,7 @@ function PanelConductor() {
                             </p>
                             <p style={{ fontSize: 18, color: "#f9fafb" }}>
                               <FaPhone className="me-1" />
-                              <strong>Teléfono:</strong>{" "}
+                              <strong>Telefono:</strong>{" "}
                               {conductor.telefono}
                             </p>
                             <p style={{ fontSize: 18, color: "#f9fafb" }}>
@@ -711,10 +758,15 @@ function PanelConductor() {
                     overflowY: "auto",
                   }}
                 >
-                  {viajes.map((v) => (
-                    <div
-                      key={v.id}
-                      className="card mb-2"
+                  {viajes.map((v) => {
+                    const pasajeroExtra = pasajerosInfo[v.pasajeroEmail] || null;
+                    const telefonoPasajero = pasajeroExtra?.telefono
+                      ? pasajeroExtra.telefono.toString().replace(/\D/g, "")
+                      : "";
+                    return (
+                      <div
+                        key={v.id}
+                        className="card mb-2"
                       style={{
                         backgroundColor: "#020617",
                         borderRadius: 14,
@@ -763,9 +815,26 @@ function PanelConductor() {
                         </div>
                         <p style={{ marginBottom: 4 }}>
                           <FaUser className="me-1" />
-                          <strong>Pasajero:</strong> {v.pasajeroNombre} (
-                          {v.pasajeroEmail})
+                          <strong>Pasajero:</strong>{" "}
+                          {pasajeroExtra?.nombre ||
+                            v.pasajeroNombre ||
+                            "Sin nombre"}{" "}
+                          ({v.pasajeroEmail})
                         </p>
+                        {pasajeroExtra?.direccion && (
+                          <p style={{ marginBottom: 4 }}>
+                            <FaMapMarkerAlt className="me-1" />
+                            <strong>Direccion:</strong>{" "}
+                            {pasajeroExtra.direccion}
+                          </p>
+                        )}
+                        {pasajeroExtra?.telefono && (
+                          <p style={{ marginBottom: 4 }}>
+                            <FaPhone className="me-1" />
+                            <strong>Telefono:</strong>{" "}
+                            {pasajeroExtra.telefono}
+                          </p>
+                        )}
                         {v.conductorColonia && (
                           <p style={{ marginBottom: 4 }}>
                             <FaMapMarkerAlt className="me-1" />
@@ -791,9 +860,25 @@ function PanelConductor() {
                               : "Marcar como completado"}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-success mt-2 ms-2"
+                          disabled={v.estado !== "programado" || !telefonoPasajero}
+                          onClick={() => {
+                            if (!telefonoPasajero) return;
+                            window.open(
+                              `https://wa.me/${telefonoPasajero}`,
+                              "_blank"
+                            );
+                          }}
+                        >
+                          <FaWhatsapp className="me-1" />
+                          Contactar por WhatsApp
+                        </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -857,7 +942,7 @@ function PanelConductor() {
                 </div>
 
                 <div className="mb-2">
-                  <label className="form-label">Teléfono</label>
+                  <label className="form-label">Telefono</label>
                   <input
                     type="tel"
                     name="telefono"
@@ -995,3 +1080,6 @@ function PanelConductor() {
 }
 
 export default PanelConductor;
+
+
+
