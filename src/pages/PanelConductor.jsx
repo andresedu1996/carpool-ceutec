@@ -1001,7 +1001,7 @@ function PanelConductor() {
                               opacity: 0.7,
                             }}
                           >
-                            Token guardado: {pushToken}
+                            Token guardado
                           </div>
                         )}
                         {pushError && (
