@@ -11,11 +11,24 @@ try {
   importScripts("https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging-compat.js");
 }
 
-// En local tomamos el senderId de la query string ?senderId=...
-const senderId = new URL(self.location).searchParams.get("senderId");
-if (firebase?.apps?.length === 0 && senderId) {
+// En local tomamos la configuración de la query string
+const searchParams = new URL(self.location).searchParams;
+const fallbackConfig = [
+  "apiKey",
+  "authDomain",
+  "projectId",
+  "storageBucket",
+  "messagingSenderId",
+  "appId",
+].reduce((acc, key) => {
+  const value = searchParams.get(key);
+  if (value) acc[key] = value;
+  return acc;
+}, {});
+
+if (firebase?.apps?.length === 0 && Object.keys(fallbackConfig).length > 0) {
   try {
-    firebase.initializeApp({ messagingSenderId: senderId });
+    firebase.initializeApp(fallbackConfig);
   } catch (err) {
     console.error("FCM SW: no se pudo inicializar Firebase", err);
   }
