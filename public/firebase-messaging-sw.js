@@ -43,12 +43,16 @@ try {
 
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
-    const { title, body } = payload.notification || {};
+    const notification = payload.notification || {};
     const data = payload.data || {};
 
-    self.registration.showNotification(title || "Nuevo viaje programado", {
-      body: body || "Un pasajero agendó un viaje contigo.",
-      icon: "/vite.svg",
+    const title = notification.title || data.title || "Nuevo viaje programado";
+    const body = notification.body || data.body || "Un pasajero agendó un viaje contigo.";
+    const icon = notification.icon || data.icon || "/vite.svg";
+
+    self.registration.showNotification(title, {
+      body,
+      icon,
       data,
     });
   });
