@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,4 +20,12 @@ const db = getFirestore(app);
 // Autenticación
 const auth = getAuth(app);
 
-export { db, auth };
+// Mensajería (FCM)
+let messagingPromise = Promise.resolve(null);
+if (typeof window !== "undefined") {
+  messagingPromise = isSupported()
+    .then((supported) => (supported ? getMessaging(app) : null))
+    .catch(() => null);
+}
+
+export { db, auth, messagingPromise };
