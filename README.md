@@ -1,97 +1,107 @@
-![Estado del Proyecto](https://img.shields.io/badge/ESTADO-COMPLETO-brightgreen)
-![Asignatura](https://img.shields.io/badge/Estructura_de_Datos-Proyecto-blue)
+![Estado del Proyecto](https://img.shields.io/badge/ESTADO-EN_DESARROLLO-brightgreen)
 ![Tipo](https://img.shields.io/badge/Tipo-App__Web-informational)
-![Interfaz](https://img.shields.io/badge/Interfaz-Web-success)
-![Estructuras](https://img.shields.io/badge/Estructuras-Firestore__%7C__Ordenaci%C3%B3n__por__prioridad__%7C__Lista__doblemente__enlazada-6f42c1)
-![Validación](https://img.shields.io/badge/Validaci%C3%B3n-Entradas_y_Errores-important)
+![Stack](https://img.shields.io/badge/Stack-React__%7C__Firebase__%7C__Vite-6f42c1)
 
-# Sistema de Gestión de Cola
+# CarPool – Agenda de Viajes Universitarios
 
-### Proyecto de la clase de Estructura de Datos
-
-Aplicación web (Vite + React) para gestionar pacientes, doctores y citas con **lista de espera por prioridad** en tiempo real usando **Firebase Firestore**. Permite **registrar pacientes**, **agendar citas**, **listar y ordenar por prioridad/fecha**, **editar/atender citas**, y consultar un **historial de atendidos** implementado con **lista doblemente enlazada**, con **validación** en formularios.
+Aplicación web construida con **React + Vite** para conectar estudiantes y conductores del campus. Permite **registrar datos personales**, **explorar conductores disponibles**, **agendar viajes**, **consultar viajes programados** y ofrece un **panel especializado para cada conductor** con métricas, control de disponibilidad y contacto directo con los pasajeros. Toda la información se sincroniza en tiempo real usando **Firebase Authentication + Firestore**.
 
 ---
 
 ## Características Principales
 
-- ✅ **Registro de pacientes**  
-  Nombre, Fecha de nacimiento, Edad, Ciudad y Dirección. El Nº de expediente se genera automáticamente (contador en `counters/pacientes`).
+- ✅ **Perfil del pasajero**  
+  Formulario estilo dashboard (inspirado en PanelConductor) para registrar nombre, campus, teléfono y dirección vinculados al usuario autenticado.
 
-- 🗓️ **Agendar citas**  
-  Búsqueda por expediente o nombre; selección de Área, Doctor, Fecha y Horario disponible; campos de Síntomas, Motivo y Prioridad (alta/media/baja). Guarda en `citas` con estado `en_espera`.
+- 🚗 **Lista de conductores**  
+  Catálogo responsivo con la misma UI oscura que “Agendar Viaje”, mostrando colonia, horarios, vehículo, precio, capacidad, campus atendidos y enlaces de WhatsApp. Cada tarjeta redirige rápidamente al calendario de reservas.
 
-- 🧭 **Lista de espera por prioridad**  
-  Vista en tiempo real de `citas` con estado `en_espera`, fusionada con datos de `pacientes`. Ordenada por prioridad (alta > media > baja) y fecha/hora.
+- 📅 **Agendar viaje**  
+  Selección de conductor, fecha y horario disponible; evita colisiones controlando los cupos máximos por conductor/horario y bloqueando opciones cuando se llenan. Integra contacto directo con WhatsApp y muestra en tiempo real los datos completos del conductor seleccionado.
 
-- ✏️ **Editar/atender citas**  
-  Edición de síntomas, motivo y prioridad; opción para marcar como atendido (estado `atendido`).
+- 🧾 **Mis viajes**  
+  Vista del pasajero ordenada por prioridad (programado > completado > cancelado) mostrando todos los datos del conductor y un botón para cancelar o chatear por WhatsApp según corresponda.
 
-- 🩺 **Listado de doctores**  
-  Carga desde la colección `doctores` (o predeterminados), con foto, área, contacto, ubicación y horarios.
+- 🧑‍✈️ **Panel del conductor**  
+  Dashboard con estadísticas, edición de perfil, lista de viajes y acciones rápidas:
+  - Prioriza viajes programados y muestra datos completos del pasajero (auto-cargados desde `usuarios`).
+  - Botón para marcar viaje como completado sin salir de la página.
+  - Enlace a WhatsApp cuando el pasajero dejó teléfono en su perfil.
 
-- 🕘 **Historial de atendidos**  
-  Vista dedicada con navegación tipo anterior/siguiente basada en **lista doblemente enlazada** sobre las citas con estado `atendido` (ordenadas por fecha de atención). Incluye búsqueda y filtro por prioridad.
+- 🔐 **Autenticación unificada**  
+  El formulario de pasajero y el panel del conductor detectan al usuario actual usando `onAuthStateChanged`. Si no hay sesión activa, redirigen a las pantallas de login correspondientes.
 
-- 🎨 **UI y estilos**  
-  React + Bootstrap 5 + React Icons.
-
-- 🛡️ **Validación**  
-  Formularios con campos obligatorios y manejo básico de errores.
-
----
-
-## Tecnologías 
-
-- **Framework/Lenguaje:** React 19 + Vite 7.  
-- **Estilos:** Bootstrap 5 · React Icons.  
-- **Persistencia:** Firebase Firestore.
-
-> Configura variables de entorno `VITE_FIREBASE_*` para conectar con tu proyecto de Firebase.
+- 🎨 **UI coherente**  
+  Se adoptó el mismo look & feel del panel (gradientes verdes, tarjetas oscuras, iconografía) en módulos clave como Agendar Viaje, Lista de Conductores y el formulario de datos personales para mantener una experiencia fluida en desktop y móvil.
 
 ---
 
-## Requisitos
+## Tecnologías
 
-- **Datos mínimos por paciente:** Nombre, Fecha de Nacimiento, Edad, Ciudad, Dirección. Nº de expediente autogenerado (6 dígitos).  
-- **Operaciones:** Registrar paciente · Agendar cita · Mostrar lista por prioridad · Editar/Atender cita · Listar doctores · Historial de atendidos.  
-- **Interfaz:** GUI web (Vite + React).  
-- **Calidad:** Validaciones en formularios y manejo básico de errores.
-
----
-
-## Estructuras de Datos
-
-- **Firestore (colecciones):** `pacientes`, `citas`, `doctores`, `counters/pacientes`.  
-- **Lista de espera:** ordenación en cliente por prioridad (alta > media > baja) y fecha/hora.  
-- **Historial:** estructura en memoria con **lista doblemente enlazada** para recorrer pacientes atendidos (más reciente ⇄ más antiguo).  
-- **Estados de cita:** `en_espera` → `atendido` con marcas de tiempo (`createdAt`, `fechaAtencion`).
+- **Frontend:** React 19, Vite 7, React Router.
+- **Estilos:** Bootstrap 5, React Icons, estilos inline inspirados en paneles oscuros.
+- **Backend-as-a-Service:** Firebase Authentication + Firestore (colecciones `usuarios`, `conductores`, `viajes`, `pasajeros`).
+- **Herramientas auxiliares:** Vite asset glob para imágenes de conductores, scripts de seed (`seed_conductores.js`).
 
 ---
 
-## Cómo Ejecutar
+## Estructura de datos relevante
 
-1. **Clona** este repositorio.  
-2. **Instala y configura**: instala dependencias; define variables `VITE_FIREBASE_*` en `.env.local` (opcional: ejecuta `node seedDoctores.js` para poblar doctores).  
+- **usuarios**  
+  Datos maestros del pasajero (nombre, campus, teléfono, dirección, email, role). Se usan para rellenar formularios y enriquecer la vista de “Mis viajes” y el panel del conductor.
 
-  Variables esperadas (Firebase):
+- **conductores**  
+  Perfil con nombre, colonia, vehículo, capacidad, horarios, campus y teléfono. El panel permite editar todos los campos.
 
-  - `VITE_FIREBASE_API_KEY`
-  - `VITE_FIREBASE_AUTH_DOMAIN`
-  - `VITE_FIREBASE_PROJECT_ID`
-  - `VITE_FIREBASE_STORAGE_BUCKET`
-  - `VITE_FIREBASE_MESSAGING_SENDER_ID`
-  - `VITE_FIREBASE_APP_ID`
-  - `VITE_FIREBASE_MEASUREMENT_ID`
+- **viajes**  
+  Registros creados al agendar un viaje con referencias a pasajero y conductor, fechas, horarios, estado (`programado`, `completado`, `cancelado`) y marcas de tiempo.
 
-3. **Ejecuta** la app de desarrollo y navega el flujo: Crear Expediente → Agendar Cita → Lista de Espera → Editar/Atender → Historial.
+- **pasajeros (legacy)**  
+  Se mantiene por compatibilidad con versiones anteriores, pero la información mostrada en la UI se alimenta principalmente de `usuarios`.
 
-  Scripts útiles:
+---
 
-  - Desarrollo: `npm run dev`
-  - Lint: `npm run lint`
-  - Compilar: `npm run build`
-  - Preview producción: `npm run preview`
+## Configuración y ejecución
 
-> Requiere conexión a Firestore: define `VITE_FIREBASE_*` antes de ejecutar.
+1. **Clona** el repositorio e instala dependencias.
+2. Crea un archivo `.env` / `.env.local` con las variables de Firebase:
+   ```
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   VITE_FIREBASE_MEASUREMENT_ID=...
+   ```
+3. (Opcional) Ejecuta `node seed_conductores.js` para poblar conductores de ejemplo.
+4. Inicia la aplicación:
+   ```bash
+   npm run dev
+   ```
+5. Flujos sugeridos:
+   - Crear/actualizar datos personales → Agendar viaje → Revisar “Mis viajes”.
+   - Autenticarse como conductor → Revisar panel, viajes y editar perfil.
 
+Scripts disponibles:
+
+| Script            | Descripción                      |
+|-------------------|----------------------------------|
+| `npm run dev`     | Servidor de desarrollo           |
+| `npm run build`   | Compilación para producción      |
+| `npm run preview` | Revisión local del build         |
+| `npm run lint`    | Revisión de estilos y errores    |
+
+---
+
+## Próximos pasos / ideas
+
+- Notificaciones push cuando el viaje cambia de estado.
+- Integración de precios dinámicos para dividir costos entre pasajeros.
+- Modo offline para registrar viajes y sincronizar luego.
+
+---
+
+## Licencia
+
+Proyecto académico/experimental. Usa y adapta el código bajo tu propio riesgo; recuerda configurar tus credenciales de Firebase antes de desplegarlo.
