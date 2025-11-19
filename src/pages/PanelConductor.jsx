@@ -232,9 +232,12 @@ function PanelConductor() {
     messagingPromise.then((messaging) => {
       if (!messaging) return;
       unsubscribe = onMessage(messaging, (payload) => {
-        const body = payload?.notification?.body;
-        if (body) {
-          setMensaje(`📩 ${body}`);
+        const title = payload?.notification?.title || payload?.data?.title;
+        const body = payload?.notification?.body || payload?.data?.body;
+
+        if (body || title) {
+          const label = title ? `${title}: ${body || ""}` : body;
+          setMensaje(`📩 ${label}`);
         }
       });
     });
