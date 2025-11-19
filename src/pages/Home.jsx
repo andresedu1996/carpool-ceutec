@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaIdCard,
@@ -17,16 +17,64 @@ import MisViajes from "./MisViajes.jsx";
 
 function Home() {
   const [activeTab, setActiveTab] = useState("inicio");
+  const [showGuide, setShowGuide] = useState(false);
   const navigate = useNavigate();
 
   const BG_URL =
     "https://images.pexels.com/photos/1386649/pexels-photo-1386649.jpeg";
 
-  // Estilos comunes de las cards
-  const cardBaseStyle = {
-    cursor: "pointer",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-  };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seen = localStorage.getItem("carpool_home_guide_seen");
+    setShowGuide(!seen);
+  }, []);
+
+  const cardBaseStyle = useMemo(
+    () => ({
+      cursor: "pointer",
+      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+      borderRadius: 18,
+      background:
+        "linear-gradient(145deg, rgba(15,23,42,0.85), rgba(2,6,23,0.85))",
+      color: "#e2e8f0",
+      border: "1px solid rgba(148,163,184,0.4)",
+      minHeight: 180,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }),
+    []
+  );
+
+  const actions = useMemo(
+    () => [
+      {
+        key: "pacientes",
+        icon: <FaIdCard size={40} className="mb-3 text-primary" />,
+        title: "Registrar Datos Personales",
+        description: "Completa tu perfil para que los conductores te ubiquen.",
+      },
+      {
+        key: "agendar",
+        icon: <FaCar size={40} className="mb-3 text-success" />,
+        title: "Agendar Viaje",
+        description: "Elige conductor, fecha y horario disponible.",
+      },
+      {
+        key: "misViajes",
+        icon: <FaRoute size={40} className="mb-3 text-warning" />,
+        title: "Mi viaje programado",
+        description: "Consulta tus viajes próximos o pasados.",
+      },
+      {
+        key: "listaDoctores",
+        icon: <FaUsers size={40} className="mb-3 text-info" />,
+        title: "Lista Conductores",
+        description: "Explora conductores y contáctalos por WhatsApp.",
+      },
+    ],
+    []
+  );
 
   // funciones hover reutilizables
   const handleMouseEnter = (e) => {
@@ -118,72 +166,99 @@ function Home() {
             </h1>
             <div className="container">
               <div className="row justify-content-center g-4">
-                {/* Card para registrar datos personales */}
-                <div className="col-md-3">
-                  <div
-                    className="card text-center h-100 shadow-lg"
-                    style={cardBaseStyle}
-                    onClick={() => setActiveTab("pacientes")}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <div className="card-body">
-                      <FaIdCard size={40} className="mb-3 text-primary" />
-                      <h5 className="card-title">
-                        Registrar Datos Personales
-                      </h5>
+                {actions.map((action) => (
+                  <div className="col-12 col-sm-6 col-xl-3" key={action.key}>
+                    <div
+                      className="card text-center h-100 shadow-lg"
+                      style={{
+                        ...cardBaseStyle,
+                        boxShadow: showGuide
+                          ? "0 0 0 2px rgba(34,197,94,0.7)"
+                          : undefined,
+                      }}
+                      onClick={() => setActiveTab(action.key)}
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      <div className="card-body d-flex flex-column justify-content-center">
+                        {action.icon}
+                        <h5 className="card-title mb-2">{action.title}</h5>
+                        <p
+                          style={{
+                            fontSize: 14,
+                            opacity: 0.8,
+                            minHeight: 48,
+                          }}
+                        >
+                          {action.description}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Card para agendar viaje */}
-                <div className="col-md-3">
-                  <div
-                    className="card text-center h-100 shadow-lg"
-                    style={cardBaseStyle}
-                    onClick={() => setActiveTab("agendar")}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <div className="card-body">
-                      <FaCar size={40} className="mb-3 text-success" />
-                      <h5 className="card-title">Agendar Viaje</h5>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card: Mi viaje programado */}
-                <div className="col-md-3">
-                  <div
-                    className="card text-center h-100 shadow-lg"
-                    style={cardBaseStyle}
-                    onClick={() => setActiveTab("misViajes")}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <div className="card-body">
-                      <FaRoute size={40} className="mb-3 text-warning" />
-                      <h5 className="card-title">Mi viaje programado</h5>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Lista Conductores */}
-                <div className="col-md-3">
-                  <div
-                    className="card text-center h-100 shadow-lg"
-                    style={cardBaseStyle}
-                    onClick={() => setActiveTab("listaDoctores")}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <div className="card-body">
-                     <FaUsers size={40} className="mb-3 text-dark" />
-                      <h5 className="card-title">Lista Conductores</h5>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {showGuide && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(2,6,23,0.8)",
+              backdropFilter: "blur(6px)",
+              zIndex: 20,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 420,
+                width: "100%",
+                backgroundColor: "#0f172a",
+                borderRadius: 20,
+                border: "1px solid rgba(148,163,184,0.4)",
+                padding: 24,
+                color: "#e2e8f0",
+                textAlign: "left",
+              }}
+            >
+              <h4 style={{ marginBottom: 12 }}>Bienvenido a CarPool 👋</h4>
+              <p style={{ fontSize: 14, opacity: 0.9 }}>
+                Estas tarjetas te guiarán por los pasos básicos:
+              </p>
+              <ul style={{ fontSize: 14, paddingLeft: 18, lineHeight: 1.6 }}>
+                <li>
+                  <strong>Registrar Datos:</strong> comparte tu dirección y
+                  teléfono.
+                </li>
+                <li>
+                  <strong>Lista conductores:</strong> explora y contacta al
+                  conductor ideal.
+                </li>
+                <li>
+                  <strong>Agendar viaje:</strong> elige fecha y horario
+                  disponible.
+                </li>
+                <li>
+                  <strong>Mi viaje programado:</strong> revisa o cancela tus
+                  reservas.
+                </li>
+              </ul>
+              <button
+                className="btn btn-success w-100 mt-3"
+                style={{ borderRadius: 999 }}
+                onClick={() => {
+                  setShowGuide(false);
+                  localStorage.setItem("carpool_home_guide_seen", "1");
+                }}
+              >
+                ¡Entendido!
+              </button>
             </div>
           </div>
         )}
