@@ -90,7 +90,8 @@ function ListaConductores({ onAgendar }) {
         }
       }
 
-      setConductores(base);
+      const aprobados = base.filter((c) => c.aprobado !== false);
+      setConductores(aprobados);
       setCargando(false);
     })();
   }, []);

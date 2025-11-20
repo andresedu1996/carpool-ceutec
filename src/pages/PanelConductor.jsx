@@ -501,6 +501,36 @@ setMensaje("🔔 Notificaciones activadas para este dispositivo.");
     return <p style={{ padding: 20 }}>Debes iniciar sesión como conductor.</p>;
   }
 
+  if (conductor && conductor.aprobado === false) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at top, #1f2937 0%, #020617 55%, #000 100%)",
+          color: "#f1f5f9",
+          textAlign: "center",
+          padding: 24,
+        }}
+      >
+        <h2 style={{ marginBottom: 12 }}>Tu cuenta está en revisión</h2>
+        <p style={{ maxWidth: 480, opacity: 0.85 }}>
+          Recibimos tu registro y la evidencia de tu carnet universitario. Un
+          administrador debe aprobar la cuenta antes de que puedas acceder al
+          panel. Te notificaremos en cuanto se habilite.
+        </p>
+        <button className="btn btn-outline-light mt-3" onClick={handleLogout}>
+          <FaSignOutAlt className="me-1" />
+          Cerrar sesión
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{

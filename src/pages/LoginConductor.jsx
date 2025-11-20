@@ -4,8 +4,10 @@ import { auth, db } from "../firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signOut,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -19,6 +21,7 @@ import {
   FaPhone,
   FaSchool,
   FaArrowLeft,
+  FaClipboardCheck,
 } from "react-icons/fa";
 
 const DIAS_SEMANA = [
@@ -29,6 +32,24 @@ const DIAS_SEMANA = [
   "Viernes",
   "Sábado",
 ];
+
+const CAMPUS_OPTIONS = ["Ceutec Sede Norte", "Ceutec Sede Central"];
+
+const getEmptyConductorData = () => ({
+  nombre: "",
+  colonia: "",
+  horario: "",
+  pasajeros: 3,
+  placa: "",
+  precio: 0,
+  telefono: "",
+  vehiculo: "",
+  diasClase: [],
+  campus: [],
+});
+
+const MAX_CARNET_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const SUPABASE_BUCKET = import.meta.env.VITE_SUPABASE_BUCKET || "carnets";
 
 export default function LoginConductor() {
   const navigate = useNavigate();
@@ -53,19 +74,14 @@ export default function LoginConductor() {
   }, []);
 
   // Datos del conductor (solo se usan al registrarse)
-  const [conductorData, setConductorData] = useState({
-    nombre: "",
-    colonia: "",
-    horario: "",
-    pasajeros: 3,
-    placa: "",
-    precio: 0,
-    telefono: "",
-    vehiculo: "",
-    diasClase: [],
-  });
+  const [conductorData, setConductorData] = useState(() =>
+    getEmptyConductorData()
+  );
 
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [carnetFile, setCarnetFile] = useState(null);
 
   const handleChangeConductor = (e) => {
     const { name, value } = e.target;
@@ -87,25 +103,61 @@ export default function LoginConductor() {
     });
   };
 
+  const toggleCampus = (campus) => {
+    setConductorData((prev) => {
+      const actual = prev.campus || [];
+      if (actual.includes(campus)) {
+        return { ...prev, campus: actual.filter((c) => c !== campus) };
+      }
+      return { ...prev, campus: [...actual, campus] };
+    });
+  };
+
+  const handleCarnetChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (file && file.size > MAX_CARNET_FILE_SIZE) {
+      setError("El archivo del carnet debe ser menor a 5 MB.");
+      e.target.value = "";
+      setCarnetFile(null);
+      return;
+    }
+    setError("");
+    setCarnetFile(file);
+  };
+
+  const resetConductorForm = () => {
+    setConductorData(getEmptyConductorData());
+    setCarnetFile(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNotice("");
+    if (isSubmitting) return;
 
     try {
-      if (isRegister) {
-        // Crear usuario en Auth
-        const res = await createUserWithEmailAndPassword(auth, email, password);
+      setIsSubmitting(true);
 
+      if (isRegister) {
+        if (!carnetFile) {
+          setError("Debes adjuntar una foto o PDF de tu carnet universitario.");
+          return;
+        }
+        if (!conductorData.campus || conductorData.campus.length === 0) {
+          setError("Selecciona al menos un campus donde recoges pasajeros.");
+          return;
+        }
+
+        const res = await createUserWithEmailAndPassword(auth, email, password);
         const uid = res.user.uid;
 
-        // 1) Guardar en "usuarios" con rol conductor
         await setDoc(doc(db, "usuarios", uid), {
           email,
           role: "conductor",
           createdAt: new Date().toISOString(),
         });
 
-        // 2) Guardar en "conductores"
         const {
           nombre,
           colonia,
@@ -116,7 +168,39 @@ export default function LoginConductor() {
           telefono,
           vehiculo,
           diasClase,
+          campus,
         } = conductorData;
+
+        let carnetUrl = "";
+        if (carnetFile) {
+          if (!supabase) {
+            throw new Error(
+              "Supabase no está configurado para subir el carnet. Revisa la conexión."
+            );
+          }
+          if (!SUPABASE_BUCKET) {
+            throw new Error(
+              "No se encontró la variable VITE_SUPABASE_BUCKET para subir el carnet."
+            );
+          }
+          const filePath = `${uid}/${Date.now()}_${carnetFile.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from(SUPABASE_BUCKET)
+            .upload(filePath, carnetFile, {
+              upsert: true,
+              cacheControl: "3600",
+              contentType: carnetFile.type || "application/octet-stream",
+            });
+          if (uploadError) {
+            throw new Error(
+              `No se pudo cargar el carnet: ${uploadError.message}`
+            );
+          }
+          const { data: publicData } = supabase.storage
+            .from(SUPABASE_BUCKET)
+            .getPublicUrl(filePath);
+          carnetUrl = publicData?.publicUrl || "";
+        }
 
         await setDoc(doc(db, "conductores", uid), {
           nombre,
@@ -127,24 +211,59 @@ export default function LoginConductor() {
           precio,
           telefono,
           vehiculo,
+          campus: campus || [],
           foto: "default.png",
           diasClase: diasClase || [],
+          carnetUrl,
+          aprobado: false,
+          aprobadoPor: null,
+          aprobadoEl: null,
           email,
           uid,
           createdAt: new Date().toISOString(),
         });
 
-        alert("Cuenta de conductor creada correctamente");
-      } else {
-        // Iniciar sesión
-        await signInWithEmailAndPassword(auth, email, password);
+        await signOut(auth);
+        resetConductorForm();
+        setEmail("");
+        setPassword("");
+        setIsRegister(false);
+        setNotice(
+          "Tu registro fue recibido. Un administrador revisará tu carnet y aprobará tu cuenta pronto."
+        );
+        return;
       }
 
-      // Redirigir al home de conductor
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const conductorRef = doc(db, "conductores", cred.user.uid);
+      const conductorSnap = await getDoc(conductorRef);
+
+      if (!conductorSnap.exists()) {
+        await signOut(auth);
+        setError(
+          "No encontramos tu información de conductor. Contáctanos para completar tu registro."
+        );
+        return;
+      }
+
+      const conductorInfo = conductorSnap.data();
+      if (conductorInfo.aprobado === false) {
+        await signOut(auth);
+        setError(
+          "Tu cuenta de conductor sigue en revisión. Te avisaremos cuando haya sido aprobada."
+        );
+        return;
+      }
+
       navigate("/panel-conductor");
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError(
+        err?.message ||
+          "No se pudo procesar la solicitud. Intenta nuevamente más tarde."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -450,6 +569,71 @@ export default function LoginConductor() {
                     </div>
                   </div>
                 </div>
+
+                <div className="mb-3">
+                  <label className="form-label">
+                    Campus donde recoges pasajeros
+                  </label>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      fontSize: 13,
+                    }}
+                  >
+                    {CAMPUS_OPTIONS.map((campus) => (
+                      <label
+                        key={campus}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "1px solid rgba(148,163,184,0.7)",
+                          cursor: "pointer",
+                          backgroundColor: conductorData.campus.includes(campus)
+                            ? "rgba(34,197,94,0.2)"
+                            : "transparent",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={conductorData.campus.includes(campus)}
+                          onChange={() => toggleCampus(campus)}
+                          style={{ accentColor: "#22c55e" }}
+                        />
+                        {campus}
+                      </label>
+                    ))}
+                  </div>
+                  <small style={{ fontSize: 12, opacity: 0.75 }}>
+                    Puedes seleccionar varias sedes si aplican.
+                  </small>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">
+                    Carnet universitario (imagen o PDF)
+                  </label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*,.pdf"
+                    onChange={handleCarnetChange}
+                    required
+                  />
+                  {carnetFile && (
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      Archivo seleccionado: <strong>{carnetFile.name}</strong>
+                    </div>
+                  )}
+                  <small style={{ fontSize: 12, opacity: 0.75 }}>
+                    Máximo 5 MB. Esta evidencia se revisará antes de habilitar
+                    tu cuenta.
+                  </small>
+                </div>
               </>
             )}
 
@@ -462,12 +646,24 @@ export default function LoginConductor() {
               </div>
             )}
 
+            {notice && (
+              <div
+                className="alert alert-info py-2 mt-2"
+                style={{ fontSize: 14 }}
+              >
+                {notice}
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn btn-success w-100 mt-2"
               style={{ borderRadius: 999 }}
+              disabled={isSubmitting}
             >
-              {isRegister ? (
+              {isSubmitting ? (
+                "Procesando..."
+              ) : isRegister ? (
                 <>
                   <FaUserPlus className="me-2" />
                   Registrarse como Conductor
@@ -487,7 +683,11 @@ export default function LoginConductor() {
               : "¿Eres nuevo conductor?"}{" "}
             <span
               style={{ color: "#22c55e", cursor: "pointer" }}
-              onClick={() => setIsRegister(!isRegister)}
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError("");
+                setNotice("");
+              }}
             >
               {isRegister ? "Inicia sesión" : "Regístrate"}
             </span>
@@ -621,6 +821,30 @@ export default function LoginConductor() {
                     <FaSchool className="me-2" />
                     Selecciona los <strong>días que vas a clase</strong> para
                     que solo esos días puedan agendar contigo.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="card mt-2"
+                style={{
+                  backgroundColor: "rgba(15,23,42,0.9)",
+                  borderRadius: 14,
+                  border: "1px solid rgba(55,65,81,0.8)",
+                }}
+              >
+                <div className="card-body py-2">
+                  <p
+                    style={{
+                      marginBottom: 4,
+                      fontSize: isMobile ? 13 : 14,
+                      color: "#fafafaff",
+                    }}
+                  >
+                    <FaClipboardCheck className="me-2" />
+                    Adjunta tu <strong>carnet universitario</strong>. Un
+                    administrador verificará la información y aprobará tu cuenta
+                    manualmente.
                   </p>
                 </div>
               </div>

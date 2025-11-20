@@ -90,7 +90,8 @@ function AgendarViaje() {
     const loadConductores = async () => {
       const snap = await getDocs(collection(db, "conductores"));
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setConductores(rows);
+      const aprobados = rows.filter((c) => c.aprobado !== false);
+      setConductores(aprobados);
     };
     loadConductores();
   }, []);

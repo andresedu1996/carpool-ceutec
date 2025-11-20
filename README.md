@@ -102,6 +102,15 @@ Scripts disponibles:
 
 ---
 
+## Flujo de aprobaciA3n y panel administrador
+
+- **Registro del conductor:** el formulario de `/login-conductor` ahora solicita campus y exige subir una foto o PDF del carnet universitario. El archivo se guarda en Firebase Storage dentro de `carnets/{uid}/...` y el documento de `conductores` queda con `aprobado: false`, `carnetUrl`, `aprobadoPor`, `aprobadoEl`.
+- **CreaciA3n de admins:** los administradores se agregan manualmente en Firebase Auth y se les crea un documento en `usuarios` con `role: "admin"`. Solo ellos pueden iniciar sesion en `/login-admin`.
+- **Panel de aprobaciA3n:** `/panel-admin` lista los conductores pendientes, permite abrir el carnet en otra pestaA�a y aprobar la cuenta (se actualiza `aprobado`, `aprobadoPor`, `aprobadoEl`). Las vistas pA-blicas y el agendamiento solo muestran conductores aprobados.
+- **Bloqueo automA-tico:** si `aprobado === false`, el conductor no puede iniciar sesiA3n ni ver su panel; verA! un mensaje de revisiA3n.
+
+---
+
 ## Licencia
 
 Proyecto académico/experimental. Usa y adapta el código bajo tu propio riesgo; recuerda configurar tus credenciales de Firebase antes de desplegarlo.

@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -17,10 +18,13 @@ const app = initializeApp(firebaseConfig);
 // Base de datos
 const db = getFirestore(app);
 
-// Autenticación
+// Autenticacion
 const auth = getAuth(app);
 
-// Mensajería (FCM)
+// Archivos (Storage)
+const storage = getStorage(app);
+
+// Mensajeria (FCM)
 let messagingPromise = Promise.resolve(null);
 if (typeof window !== "undefined") {
   messagingPromise = isSupported()
@@ -28,4 +32,4 @@ if (typeof window !== "undefined") {
     .catch(() => null);
 }
 
-export { db, auth, messagingPromise };
+export { db, auth, storage, messagingPromise };
